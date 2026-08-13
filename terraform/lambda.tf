@@ -9,7 +9,7 @@ resource "aws_lambda_function" "ingest_raw_data" {
   function_name = var.lambda_name
   s3_bucket     = aws_s3_bucket.code.bucket
   s3_key        = aws_s3_object.ingest_function_zip.key
-  role          = aws_iam_role.lambda_role.arn
+  role          = aws_iam_role.extract_lambda_role.arn
   handler       = "placeholder_lambda.lambda_handler"
   runtime       = "python3.13"
 }
