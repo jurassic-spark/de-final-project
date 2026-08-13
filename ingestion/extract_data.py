@@ -20,8 +20,7 @@ def extract_data(secrets, table_name, timestamp):
 
     
 
-secrets = get_secret("totesys_database_credentials")
-print(extract_data(secrets, table_name= "sales_order", timestamp="2026-08-01 00:00:00.000"))
+
 
 
 
