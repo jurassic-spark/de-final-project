@@ -26,9 +26,8 @@ data "aws_secretsmanager_secret" "totesys_credentials" {
   name = "totesys_database_credentials"
 }
 
-# Grants the Lambda permission to write objects to S3.
-# This will be scoped to the target ingestion bucket once that bucket
-# is provisioned.
+# Grants the Lambda permission to write objects
+# only to the ingestion S3 bucket.
 resource "aws_iam_policy" "lambda_put_policy" {
   name = "lambda_put_policy"
 
@@ -36,10 +35,10 @@ resource "aws_iam_policy" "lambda_put_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "Statement1"
+        Sid      = "WriteToIngestionBucket"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
-        Resource = "*"
+        Resource = "${aws_s3_bucket.ingest.arn}/*"
       }
     ]
   })
