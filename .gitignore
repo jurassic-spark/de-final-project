@@ -1,3 +1,14 @@
 .env
 *__pycache__/
 bin
+.venv
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+#Terraform plan files
+*.tfplan
