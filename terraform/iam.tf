@@ -1,15 +1,7 @@
-# IAM execution role assumed by the Lambda function at runtime.
-# Permissions required by the Lambda are attached to this role separately.
-resource "aws_iam_role" "lambda_role" {
-  name_prefix        = "role-${var.lambda_name}"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
-}
-
-# Defines the trust policy for the Lambda execution role.
-# Allows the AWS Lambda service to assume the role.
+# Trust policy shared by both Lambda execution roles.
+# This allows the AWS Lambda service to assume these roles when functions run.
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
-
     principals {
       type        = "Service"
       identifiers = ["lambda.amazonaws.com"]
@@ -19,26 +11,38 @@ data "aws_iam_policy_document" "lambda_assume_role" {
   }
 }
 
-# Retrieves metadata for the existing Totesys database credentials secret.
-# The secret ARN is used to restrict the Lambda's Secrets Manager permissions
-# to this specific secret.
+# Runtime role for the extract Lambda.
+# Permissions are attached separately below.
+resource "aws_iam_role" "extract_lambda_role" {
+  name_prefix        = "role-extract-lambda-"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+# Runtime role for the transform Lambda.
+resource "aws_iam_role" "transform_lambda_role" {
+  name_prefix        = "role-transform-lambda-"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+# Looks up the existing Totesys credentials secret.
 data "aws_secretsmanager_secret" "totesys_credentials" {
   name = "totesys_database_credentials"
 }
 
 # Grants the Lambda permission to write objects
 # only to the ingestion S3 bucket.
-resource "aws_iam_policy" "lambda_put_policy" {
-  name = "lambda_put_policy"
+resource "aws_iam_policy" "extract_s3_policy" {
+  name = "extract-lambda-s3-access"
 
   policy = jsonencode({
     Version = "2012-10-17"
+
     Statement = [
       {
-        Sid      = "WriteToIngestionBucket"
+        Sid      = "WriteRawData"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
-        Resource = "${aws_s3_bucket.ingest.arn}/*"
+        Resource = "${aws_s3_bucket.ingestion_zone.arn}/*"
       }
     ]
   })
@@ -47,18 +51,17 @@ resource "aws_iam_policy" "lambda_put_policy" {
 # Grants the Lambda permission to retrieve the Totesys database credentials
 # from AWS Secrets Manager. Access is restricted to the specific secret
 # referenced above.
-resource "aws_iam_policy" "lambda_secrets_policy" {
-  name = "lambda-secrets-access"
+resource "aws_iam_policy" "extract_secrets_policy" {
+  name = "extract-lambda-secrets-access"
 
   policy = jsonencode({
     Version = "2012-10-17"
 
     Statement = [
       {
-        Effect = "Allow"
-        Action = [
-          "secretsmanager:GetSecretValue"
-        ]
+        Sid      = "ReadTotesysCredentials"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
         Resource = data.aws_secretsmanager_secret.totesys_credentials.arn
       }
     ]
@@ -85,19 +88,35 @@ resource "aws_iam_policy" "lambda_function_logging_policy" {
   })
 }
 
+# Grants the Lambda permission to retrieve objects from raw s3 ingestion_zone
+# and write transformed objects to the processed zone.
+resource "aws_iam_policy" "transform_s3_policy" {
+  name = "transform-lambda-s3-access"
 
-# Attaches the S3 write policy to the Lambda execution role,
-# allowing the function to save extracted data to S3.
-resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_put_policy.arn
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid      = "ReadRawData"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "${aws_s3_bucket.ingestion_zone.arn}/*"
+      },
+      {
+        Sid      = "WriteProcessedData"
+        Effect   = "Allow"
+        Action   = ["s3:PutObject"]
+        Resource = "${aws_s3_bucket.processed_zone.arn}/*"
+      }
+    ]
+  })
 }
 
-# Attaches the Secrets Manager policy to the Lambda execution role,
-# allowing the function to retrieve the database credentials at runtime.
-resource "aws_iam_role_policy_attachment" "lambda_secrets_attach" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_secrets_policy.arn
+# Give the extract Lambda permission to write raw data to S3.
+resource "aws_iam_role_policy_attachment" "extract_s3_attach" {
+  role       = aws_iam_role.extract_lambda_role.name
+  policy_arn = aws_iam_policy.extract_s3_policy.arn
 }
 
 # Attaches the CloudWatch logging policy to the Lambda execution role,
@@ -105,4 +124,21 @@ resource "aws_iam_role_policy_attachment" "lambda_secrets_attach" {
 resource "aws_iam_role_policy_attachment" "function_logging_policy_attach" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_function_logging_policy.arn
+}
+
+# Give the extract Lambda permission to retrieve database credentials.
+resource "aws_iam_role_policy_attachment" "extract_secrets_attach" {
+  role       = aws_iam_role.extract_lambda_role.name
+  policy_arn = aws_iam_policy.extract_secrets_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "extract_logging_attach" {
+  role       = aws_iam_role.extract_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# Give the transform Lambda permission to read raw data and write processed data.
+resource "aws_iam_role_policy_attachment" "transform_s3_attach" {
+  role       = aws_iam_role.transform_lambda_role.name
+  policy_arn = aws_iam_policy.transform_s3_policy.arn
 }
