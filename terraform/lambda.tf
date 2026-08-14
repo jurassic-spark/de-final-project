@@ -11,6 +11,7 @@ resource "aws_lambda_function" "ingest_raw_data" {
   s3_key        = aws_s3_object.ingest_function_zip.key
   role          = aws_iam_role.extract_lambda_role.arn
   handler       = "placeholder_lambda.lambda_handler"
+  depends_on    = [aws_cloudwatch_log_group.ingest_function_log_group]
   runtime       = "python3.13"
 }
 
