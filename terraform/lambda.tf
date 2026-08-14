@@ -13,6 +13,10 @@ resource "aws_lambda_function" "ingest_raw_data" {
   handler       = "placeholder_lambda.lambda_handler"
   depends_on    = [aws_cloudwatch_log_group.ingest_function_log_group]
   runtime       = "python3.13"
+  logging_config {
+    log_format = "Text"
+    log_group  = aws_cloudwatch_log_group.ingest_function_log_group.name
+  }
 }
 
 data "archive_file" "ingest_function" {
