@@ -12,3 +12,5 @@ bin
 
 #Terraform plan files
 *.tfplan
+
+*.tfvars
