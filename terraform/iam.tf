@@ -43,6 +43,12 @@ resource "aws_iam_policy" "extract_s3_policy" {
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
         Resource = "${aws_s3_bucket.ingestion_zone.arn}/*"
+      },
+      {
+        Sid      = "ListIngestionBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.ingestion_zone.arn
       }
     ]
   })
