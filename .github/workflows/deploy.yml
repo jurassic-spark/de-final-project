@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   terraform:
-    name: Terraform Plan
+    name: Terraform
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +23,7 @@ jobs:
       - name: Python Setup
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       # Build the Python dependencies required by the Lambda layer.
       - name: Build Lambda layer

@@ -104,6 +104,12 @@ resource "aws_iam_policy" "transform_s3_policy" {
 
     Statement = [
       {
+        Sid      = "ListRawData"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.ingestion_zone.arn
+      },
+      {
         Sid      = "ReadRawData"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
