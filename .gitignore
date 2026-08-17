@@ -3,6 +3,8 @@
 bin
 .venv
 lambda_layer/build/
+lambda_layer
+.python-version
 
 # Local .terraform directories
 **/.terraform/*
