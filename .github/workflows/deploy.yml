@@ -42,8 +42,3 @@ jobs:
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
-
-      # Create a Terraform execution plan.
-      - name: Terraform Plan
-        working-directory: terraform
-        run: terraform plan
