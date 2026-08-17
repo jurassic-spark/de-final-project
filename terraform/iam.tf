@@ -77,7 +77,7 @@ resource "aws_iam_policy" "extract_secrets_policy" {
 # Grants the Lambda function permission to create CloudWatch log groups and streams
 # and write log events to CloudWatch Logs.
 resource "aws_iam_policy" "lambda_function_logging_policy" {
-  name   = "function-logging-policy"
+  name = "function-logging-policy"
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
@@ -128,7 +128,7 @@ resource "aws_iam_role_policy_attachment" "extract_s3_attach" {
 # Attaches the CloudWatch logging policy to the Lambda execution role,
 # allowing the function to write logs to CloudWatch Logs.
 resource "aws_iam_role_policy_attachment" "function_logging_policy_attach" {
-  role       = aws_iam_role.lambda_role.name
+  role       = aws_iam_role.extract_lambda_role.name
   policy_arn = aws_iam_policy.lambda_function_logging_policy.arn
 }
 
