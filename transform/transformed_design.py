@@ -7,7 +7,7 @@ def transformed_design():
 
     bucket = "js-final-proj-ingested-194169601943-dev"
     df = pd.read_parquet(
-        f"s3://{bucket}/raw/design"
+        f"s3://{bucket}"
     )
 
     df = df.drop(
