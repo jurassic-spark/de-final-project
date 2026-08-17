@@ -1,10 +1,8 @@
-Drop TABLE IF EXIST fact_sales_order
-Drop TABLE IF EXIST dim_date
-Drop TABLE IF EXIST dim_staff
-Drop TABLE IF EXIST dim_location
-Drop TABLE IF EXIST dim_currency
-Drop TABLE IF EXIST dim_design
-Drop TABLE IF EXIST dim_counterparty
+Drop TABLE IF EXISTS dim_staff
+Drop TABLE IF EXISTS dim_location
+Drop TABLE IF EXISTS dim_currency
+Drop TABLE IF EXISTS dim_design
+Drop TABLE IF EXISTS dim_counterparty
 
 
 CREATE TABLE "fact_sales_order" (
