@@ -26,8 +26,11 @@ jobs:
           python-version: "3.14"
 
       # Build the Python dependencies required by the Lambda layer.
-      - name: Build Lambda layer
-        run: bash lambda_layer/build.sh
+      - name: Build ingest Lambda layer
+        run: bash lambda_layers/ingest/build.sh
+
+      - name: Build transform Lambda layer
+        run: bash lambda_layers/transform/build.sh
 
       # Install Terraform on the GitHub Actions runner.
       - name: Terraform Setup
