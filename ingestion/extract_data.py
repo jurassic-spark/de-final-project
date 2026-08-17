@@ -29,7 +29,7 @@ def get_secret(secret_name):
         raise e
 
 
-def extract_data(secrets, table_name, timestamp):
+def extract_data(secrets, table_name, timestamp, extracted_ts):
     username = secrets["username"]
     password = secrets["password"]
     db_name = secrets["dbname"]
@@ -58,17 +58,17 @@ def extract_data(secrets, table_name, timestamp):
         for row in rows
     ]
     df = pd.DataFrame(data_string, columns=columns)
-
+    df["extracted_ts"] = extracted_ts
     print("dataframe:", table_name)
     return df
 
 
-def save_dataframe_to_s3_parquet(dataframe, bucket_name, table_name):
+def save_dataframe_to_s3_parquet(dataframe, bucket_name, table_name, extracted_ts):
     parquet_buffer = BytesIO()
 
-    dataframe.to_parquet(parquet_buffer, index=False)
+    timestamp = pd.to_datetime(extracted_ts).strftime("%Y%m%d_%H%M%S")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dataframe.to_parquet(parquet_buffer, index=False)
 
     object_key = f"raw/{table_name}/{table_name}_{timestamp}.parquet"  # Potential specificity using timestamps here
 
@@ -106,9 +106,11 @@ def lambda_handler(event, context):
         "transaction",
     ]
 
+    extracted_ts = datetime.now().isoformat()
+
     for table in known_tables:
-        df = extract_data(secret, table, timestamp=timestamp)
+        df = extract_data(secret, table, timestamp=timestamp, extracted_ts=extracted_ts)
 
         save_dataframe_to_s3_parquet(
-            dataframe=df, bucket_name=os.environ["INGEST_BUCKET"], table_name=table
+            dataframe=df, bucket_name=os.environ["INGEST_BUCKET"], table_name=table, extracted_ts=extracted_ts
         )

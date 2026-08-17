@@ -33,10 +33,57 @@ def test_extract_data(mock_connect, mock_read_sql_query):
     )
 
     result = extract_data(
-        secrets=secrets, table_name="sales_order", timestamp="2026-01-01 00:00:00"
+        secrets=secrets, 
+        table_name="sales_order", 
+        timestamp="2026-01-01 00:00:00",
+        extracted_ts=real_datetime(2026, 1, 1, 0, 0, 0).isoformat()
     )
 
     assert isinstance(result, pd.DataFrame)
+
+
+@mock.patch("ingestion.extract_data.psycopg2.connect")
+def test_extract_data_adds_extracted_date_column(mock_connect):
+
+    mock_connection_obj = mock.MagicMock()
+    mock_cursor_obj = mock.MagicMock()
+
+    mock_connect.return_value = mock_connection_obj
+
+    mock_connection_obj.cursor.return_value = mock_cursor_obj
+
+    mock_cursor_obj.description = [("id",), ("name",), ("last_updated",)]
+    mock_cursor_obj.fetchall.return_value = [(1, "test_name", "2026-01-01 00:00:00")]
+
+    fixed_datetime = real_datetime(2026, 8, 1, 0, 0, 0).isoformat()
+
+    secrets = {
+        "username": "test_user",
+        "password": "test_password",
+        "dbname": "test_db",
+        "host": "test_host",
+        "port": 5432,
+    }
+
+    result_df = extract_data(
+        secrets=secrets, 
+        table_name="sales_order", 
+        timestamp="2026-01-01 00:00:00",
+        extracted_ts=fixed_datetime
+    )
+
+    expected_df = pd.DataFrame(
+        {
+            "id": [1],
+            "name": ["test_name"],
+            "last_updated": ["2026-01-01 00:00:00"],
+            "extracted_ts": [fixed_datetime]
+        }
+    )
+
+    print(result_df)
+    print(expected_df)
+    assert_frame_equal(expected_df, result_df)
 
 
 # sad path
@@ -50,26 +97,42 @@ def test_extract_data_raises_exception():
     }
 
     with pytest.raises(OperationalError):
-        extract_data(secrets, table_name="sales_order", timestamp="2026-01-01 00:00:00")
+        extract_data(
+            secrets, 
+            table_name="sales_order", 
+            timestamp="2026-01-01 00:00:00",
+            extracted_ts=real_datetime(2026, 8, 1, 0, 0, 0).isoformat()
+        )
 
 
 @mock_aws
 def test_save_dataframe_to_s3_parquet():
     # arrange
     s3_client = boto3.client("s3", region_name="us-east-1")
+
     # create a bucket
     s3_client.create_bucket(Bucket="mock-s3")
+
     mock_data = {
         "secrets": ["secrets"],
         "table_name": ["sales_order"],
         "timestamp": ["2026-01-01 00:00:00"],
+        "extracted_ts": [real_datetime(2026, 1, 1, 0, 0, 0).isoformat()]
     }
     mock_df = pd.DataFrame(mock_data)
-    filepath = save_dataframe_to_s3_parquet(mock_df, "mock-s3", "sales_order")
+
+    filepath = save_dataframe_to_s3_parquet(
+        mock_df, 
+        "mock-s3", 
+        "sales_order",
+        extracted_ts=real_datetime(2026, 8, 1, 0, 0, 0).isoformat()
+    )
+
     response = s3_client.get_object(
         Bucket="mock-s3",
         Key=filepath,
     )
+
     saved_df = pd.read_parquet(BytesIO(response["Body"].read()))
 
     assert_frame_equal(mock_df, saved_df)
