@@ -77,7 +77,7 @@ resource "aws_iam_policy" "extract_secrets_policy" {
 # Grants the Lambda function permission to create CloudWatch log groups and streams
 # and write log events to CloudWatch Logs.
 resource "aws_iam_policy" "lambda_function_logging_policy" {
-  name   = "function-logging-policy"
+  name = "function-logging-policy"
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [

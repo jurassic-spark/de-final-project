@@ -65,6 +65,6 @@ resource "aws_lambda_layer_version" "lambda_layer" {
 
 data "archive_file" "lambda_layer" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda_layer"
+  source_dir  = "${path.module}/../lambda_layer/build"
   output_path = "${path.module}/lambda_layer.zip"
 }

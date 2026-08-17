@@ -1,0 +1,44 @@
+name: Terraform
+
+# Run on pushes and pull requests.
+on:
+  push:
+  pull_request:
+
+# Give the workflow read access to the repository.
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+
+    steps:
+      # Download the repository onto the GitHub Actions runner.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Set up the same Python version used by the Lambda function.
+      - name: Python Setup
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # Build the Python dependencies required by the Lambda layer.
+      - name: Build Lambda layer
+        run: bash lambda_layer/build.sh
+
+      # Install Terraform on the GitHub Actions runner.
+      - name: Terraform Setup
+        uses: hashicorp/setup-terraform@v3
+
+      # Initialise the Terraform working directory.
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      # Check that the Terraform configuration is valid.
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
