@@ -1,7 +1,7 @@
 import pandas as pd
 import s3fs
 import pycountry
-
+import numpy as np
 
 def get_dataframe_from_s3(
     bucket: str,
@@ -66,5 +66,24 @@ def transform_currency(df: pd.DataFrame) -> pd.DataFrame:
         subset=["currency_code"],
         keep= "first",
     )
+
+    return cleaned_df
+
+def transform_staff(s_df, d_df):
+    """Transforms raw staff data into the dim_staff format using supplementary department data.
+    Drops rows with duplicate staff and department ids and merges raw staff and department tables.
+    Any rows with missing data are dropped.
+    """
+    # drop rows with duplicate staff ids and drop created_at and last_updated column from staff
+    staff_df = s_df.drop_duplicates(subset="staff_id", keep="last").drop(columns=['created_at', 'last_updated'])
+
+    # drop rows with duplicate department ids and drop created_at and last_updated column from department
+    department_df = d_df.drop_duplicates(subset="department_id", keep="last").drop(columns=['manager', 'created_at', 'last_updated'])
+
+    # merge staff and department dfs and drop department_id column
+    combined_df = pd.merge(staff_df, department_df, how="left", on=["department_id", "department_id"]).drop(columns=['department_id'])
+
+    # remove rows with missing data
+    cleaned_df = combined_df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
 
     return cleaned_df
