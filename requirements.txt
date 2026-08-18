@@ -1,8 +1,8 @@
 appdirs==1.4.4
 bandit==1.9.4
 boolean.py==5.0
-boto3==1.43.69
-botocore==1.43.69
+boto3==1.43.56
+botocore==1.43.56
 CacheControl==0.14.4
 certifi==2026.7.22
 cffi==2.1.1
@@ -33,6 +33,7 @@ pluggy==1.6.0
 psycopg2-binary==2.9.12
 py-serializable==2.1.0
 pyarrow==25.0.1
+pycountry==26.2.16
 pycparser==3.0
 Pygments==2.20.0
 pyparsing==3.3.2
@@ -42,6 +43,7 @@ PyYAML==6.0.3
 requests==2.34.2
 responses==0.26.2
 rich==15.0.0
+s3fs==2026.7.0
 s3transfer==0.19.2
 setuptools==84.0.0
 six==1.17.0

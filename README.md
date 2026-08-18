@@ -69,8 +69,6 @@ This creates:
 lambda_layer/build/python/
 ```
 
-using Python 3.13 in a Linux `x86_64` Docker environment.
-
 ### 6. Initialise Terraform
 
 ```bash
