@@ -8,6 +8,7 @@ from transform.transform_data import (
     get_dataframe_from_s3,
     get_currency_name,
     transform_currency,
+    transform_staff,
 )
 
 
@@ -119,3 +120,87 @@ def test_transform_currency_standardises_currency_codes():
 
     assert result_df["currency_code"][0] == "GBP"
     assert result_df["currency_code"][1] == "USD"
+
+def test_transform_staff_returns_df():
+    mock_s_df = pd.DataFrame(
+                {
+                    "staff_id": [1, 2],
+                    "first_name": ["jane", "doe"],
+                    "last_name": ["john", "smith"],
+                    "department_id": [1, 2],
+                    "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
+                    "created_at": ["2026-01-01", "2026-01-02"],
+                    "last_updated": ["2026-01-03", "2026-01-04"],
+                }
+            )
+    mock_d_df = pd.DataFrame(
+                {
+                    "department_id": [1, 2],
+                    "department_name": ["finance", "comms"],
+                    "location": ["manchester", "leeds"],
+                    "manager": ["john", "ali"],
+                    "created_at": ["2026-01-01", "2026-01-02"],
+                    "last_updated": ["2026-01-03", "2026-01-04"],
+                }
+            )
+    result = transform_staff(mock_s_df, mock_d_df)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result.columns) == 6
+    assert 'staff_id' in result.columns
+    assert 'first_name' in result.columns
+    assert 'last_name' in result.columns
+    assert 'department_name' in result.columns
+    assert 'location' in result.columns
+    assert 'email_address' in result.columns
+
+
+def test_transform_staff_returns_df_with_no_duplicates():
+    mock_s_df = pd.DataFrame(
+                    {
+                        "staff_id": [1, 1],
+                        "first_name": ["jane", "doe"],
+                        "last_name": ["john", "smith"],
+                        "department_id": [1, 2],
+                        "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
+                        "created_at": ["2026-01-01", "2026-01-02"],
+                        "last_updated": ["2026-01-03", "2026-01-04"],
+                    }
+                )
+    mock_d_df = pd.DataFrame(
+                    {
+                        "department_id": [1, 2],
+                        "department_name": ["finance", "comms"],
+                        "location": ["manchester", "leeds"],
+                        "manager": ["john", "ali"],
+                        "created_at": ["2026-01-01", "2026-01-02"],
+                        "last_updated": ["2026-01-03", "2026-01-04"],
+                    }
+                )
+    result = transform_staff(mock_s_df, mock_d_df)
+    repeated_staff_ids = result[result["staff_id"].duplicated(keep=False)]
+    assert len(repeated_staff_ids) == 0
+
+def test_transform_staff_removes_rows_with_null_values():
+    mock_s_df = pd.DataFrame(
+                    {
+                        "staff_id": [1, 2],
+                        "first_name": ["jane", "john"],
+                        "last_name": ["doe", "smith"],
+                        "department_id": [1, 2],
+                        "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
+                        "created_at": ["2026-01-01", "2026-01-02"],
+                        "last_updated": ["2026-01-03", "2026-01-04"],
+                    }
+                )
+    mock_d_df = pd.DataFrame(
+                    {
+                        "department_id": [1, 2],
+                        "department_name": ["finance", "comms"],
+                        "location": ["manchester", ""],
+                        "manager": ["john", "ali"],
+                        "created_at": ["2026-01-01", "2026-01-02"],
+                        "last_updated": ["2026-01-03", "2026-01-04"],
+                    }
+                )
+    result = transform_staff(mock_s_df, mock_d_df)
+    assert len(result) == 1
