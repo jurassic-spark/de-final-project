@@ -228,5 +228,5 @@ def transform_counterparty() -> pd.DataFrame:
 
 
 
-dim_counterparty_df = transform_counterparty()
+
 
