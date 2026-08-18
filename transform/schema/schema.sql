@@ -40,7 +40,7 @@ CREATE TABLE "dim_staff" (
   "last_name" varchar NOT NULL,
   "department_name" varchar NOT NULL,
   "location" varchar NOT NULL,
-  "email_address" email_address NOT NULL
+  "email_address" varchar NOT NULL
 );
 
 CREATE TABLE "dim_location" (
