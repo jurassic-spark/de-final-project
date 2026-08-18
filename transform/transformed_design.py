@@ -1,14 +1,14 @@
 import pandas as pd
 import fsspec 
 import s3fs
-from transform.read_table import read_table
+from transform.read_table import read_tables_from_s3
 
 
 
 
 def transformed_design(table):
     # read the table
-    df = read_table(table)
+    df = read_tables_from_s3(table)
 
     # drop unwanted columns
     df = df.drop(
