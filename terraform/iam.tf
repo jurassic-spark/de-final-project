@@ -1,5 +1,5 @@
-# Trust policy shared by both Lambda execution roles.
-# This allows the AWS Lambda service to assume these roles when functions run.
+# Trust policy shared by the Lambda execution roles.
+# Allows the AWS Lambda service to assume these roles when functions run.
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     principals {
@@ -21,6 +21,13 @@ resource "aws_iam_role" "extract_lambda_role" {
 # Runtime role for the transform Lambda.
 resource "aws_iam_role" "transform_lambda_role" {
   name_prefix        = "role-transform-lambda-"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+# Runtime role for the Lambda that loads processed data
+# into the PostgreSQL warehouse.
+resource "aws_iam_role" "load_lambda_role" {
+  name_prefix        = "role-load-lambda-"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
@@ -54,7 +61,7 @@ resource "aws_iam_policy" "extract_s3_policy" {
   })
 }
 
-# Grants the Lambda permission to retrieve the Totesys database credentials
+# Grants the extract Lambda permission to retrieve the Totesys database credentials
 # from AWS Secrets Manager. Access is restricted to the specific secret
 # referenced above.
 resource "aws_iam_policy" "extract_secrets_policy" {
@@ -69,6 +76,24 @@ resource "aws_iam_policy" "extract_secrets_policy" {
         Effect   = "Allow"
         Action   = ["secretsmanager:GetSecretValue"]
         Resource = data.aws_secretsmanager_secret.totesys_credentials.arn
+      }
+    ]
+  })
+}
+
+#Grants the load Lambda permission to retrieve the warehouse credentials from Secrets Manager
+resource "aws_iam_policy" "load_warehouse_secret_policy" {
+  name = "load-lambda-warehouse-secret-access"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid      = "ReadWarehouseCredentials"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_db_instance.warehouse.master_user_secret[0].secret_arn
       }
     ]
   })
@@ -94,8 +119,8 @@ resource "aws_iam_policy" "lambda_function_logging_policy" {
   })
 }
 
-# Grants the Lambda permission to retrieve objects from raw s3 ingestion_zone
-# and write transformed objects to the processed zone.
+# Grants the transform Lambda permission to read raw data from the
+# ingestion bucket and write transformed data to the processed bucket.
 resource "aws_iam_policy" "transform_s3_policy" {
   name = "transform-lambda-s3-access"
 
@@ -104,10 +129,16 @@ resource "aws_iam_policy" "transform_s3_policy" {
 
     Statement = [
       {
-        Sid      = "ReadRawData"
+        Sid      = "ReadRawObjects"
         Effect   = "Allow"
         Action   = ["s3:GetObject"]
         Resource = "${aws_s3_bucket.ingestion_zone.arn}/*"
+      },
+      {
+        Sid      = "ListIngestionBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.ingestion_zone.arn
       },
       {
         Sid      = "WriteProcessedData"
@@ -117,6 +148,36 @@ resource "aws_iam_policy" "transform_s3_policy" {
       }
     ]
   })
+}
+
+# Grants the load Lambda read access to the processed S3 bucket.
+resource "aws_iam_policy" "load_s3_policy" {
+  name = "load-lambda-processed-s3-access"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid      = "ReadProcessedObjects"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "${aws_s3_bucket.processed_zone.arn}/*"
+      },
+      {
+        Sid      = "ListProcessedBucket"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.processed_zone.arn
+      }
+    ]
+  })
+}
+
+# Give the load Lambda permission to read objects from processed zone S3.
+resource "aws_iam_role_policy_attachment" "load_s3_attach" {
+  role       = aws_iam_role.load_lambda_role.name
+  policy_arn = aws_iam_policy.load_s3_policy.arn
 }
 
 # Give the extract Lambda permission to write raw data to S3.
@@ -138,13 +199,20 @@ resource "aws_iam_role_policy_attachment" "extract_secrets_attach" {
   policy_arn = aws_iam_policy.extract_secrets_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "extract_logging_attach" {
-  role       = aws_iam_role.extract_lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+# Give the load Lambda permission to retrieve warehouse credentials.
+resource "aws_iam_role_policy_attachment" "load_warehouse_secret_attach" {
+  role       = aws_iam_role.load_lambda_role.name
+  policy_arn = aws_iam_policy.load_warehouse_secret_policy.arn
 }
 
 # Give the transform Lambda permission to read raw data and write processed data.
 resource "aws_iam_role_policy_attachment" "transform_s3_attach" {
   role       = aws_iam_role.transform_lambda_role.name
   policy_arn = aws_iam_policy.transform_s3_policy.arn
+}
+
+# Enables VPC access and basic CloudWatch logging for the load Lambda.
+resource "aws_iam_role_policy_attachment" "load_lambda_vpc_attach" {
+  role       = aws_iam_role.load_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
