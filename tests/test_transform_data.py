@@ -9,6 +9,7 @@ from transform.transform_data import (
     get_currency_name,
     transform_currency,
     transform_staff,
+    transform_location,
 )
 
 
@@ -203,4 +204,71 @@ def test_transform_staff_removes_rows_with_null_values():
                     }
                 )
     result = transform_staff(mock_s_df, mock_d_df)
+    assert len(result) == 1
+
+def test_transform_location_returns_df():
+    mock_df = pd.DataFrame(
+            {
+                "address_id": [1, 2],
+                "address_line_1": ["1 new street", "flat 1"],
+                "address_line_2": ["", "2 new street"],
+                "district": ["new district", "old district"],
+                "city": ["london", "leeds"],
+                "postal_code": ["L58362", "LE 84 2152"],
+                "country": ["UK", "UK"],
+                "phone": ["542 217832 12", "323 437811 328"],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-03", "2026-01-04"],
+            }
+        )
+    result = transform_location(mock_df)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result.columns) == 8
+    assert "location_id" in result.columns
+    assert "address_line_1" in result.columns
+    assert "address_line_2" in result.columns
+    assert "district" in result.columns
+    assert "city" in result.columns
+    assert "postal_code" in result.columns
+    assert "country" in result.columns
+    assert "phone" in result.columns
+
+def test_transform_location_returns_df_with_no_duplicates():
+    mock_df = pd.DataFrame(
+            {
+                "address_id": [1, 1],
+                "address_line_1": ["1 new street", "flat 1"],
+                "address_line_2": ["", "2 new street"],
+                "district": ["new district", "old district"],
+                "city": ["london", "leeds"],
+                "postal_code": ["L58362", "LE 84 2152"],
+                "country": ["UK", "UK"],
+                "phone": ["542 217832 12", "323 437811 328"],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-03", "2026-01-04"],
+            }
+        )
+    result = transform_location(mock_df)
+    repeated_rows = result[result["location_id"].duplicated(keep=False)]
+    assert len(repeated_rows) == 0
+    assert len(result) == 1
+
+def test_transform_location_removes_rows_with_missing_values():
+    mock_df = pd.DataFrame(
+            {
+                "address_id": [1, 2],
+                "address_line_1": ["1 new street", ""],
+                "address_line_2": ["", "2 new street"],
+                "district": ["new district", "old district"],
+                "city": ["london", "leeds"],
+                "postal_code": ["L58362", "LE 84 2152"],
+                "country": ["UK", "UK"],
+                "phone": ["542 217832 12", "323 437811 328"],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-03", "2026-01-04"],
+            }
+        )
+    result = transform_location(mock_df)
+    repeated_rows = result[result["location_id"].duplicated(keep=False)]
+    assert len(repeated_rows) == 0
     assert len(result) == 1
