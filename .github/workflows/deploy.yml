@@ -19,6 +19,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Access for GitHub to AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
       # Set up the same Python version used by the Lambda function.
       - name: Python Setup
         uses: actions/setup-python@v7
