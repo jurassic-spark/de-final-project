@@ -16,20 +16,26 @@ def get_dataframe_from_s3(
     )
 
 
-def get_currency_name(currency_code: str) -> str | None:
+def get_currency_name(currency_code: str) -> str:
     """Return the ISO currency name for a three-letter currency code."""
     currency = pycountry.currencies.get(alpha_3=currency_code)
 
     if currency is None:
-        return None
+        raise ValueError(
+            f"{currency_code!r} is not a recognised currency code"
+        )
 
     return currency.name
 
 
-def transform_currency(df):
+def transform_currency(df: pd.DataFrame) -> pd.DataFrame:
+    """Transform source currency data into the dim_currency format.
+
+    Standardises and validates currency codes, adds currency names,
+    rejects missing values, and removes duplicate currencies.
+    """
     cleaned_df = df.copy()
 
-    # Keep only the columns required by dim_currency.
     cleaned_df = cleaned_df[
         [
             "currency_id",
@@ -37,11 +43,28 @@ def transform_currency(df):
         ]
     ]
 
-    # Raise an error if any currency code is missing or empty.
-    if (cleaned_df["currency_code"].isna() | cleaned_df["currency_code"].eq("")).any():
+    # Remove surrounding whitespace and standardise codes to uppercase.
+    cleaned_df["currency_code"] = (
+        cleaned_df["currency_code"]
+        .str.strip()
+        .str.upper()
+    )
+
+    # Check for missing/empty values before pycountry lookup.
+    if (
+        cleaned_df["currency_code"].isna()
+        | cleaned_df["currency_code"].eq("")
+    ).any():
         raise ValueError("currency_code cannot be missing")
 
-    # Add the full ISO currency name.
-    cleaned_df["currency_name"] = cleaned_df["currency_code"].apply(get_currency_name)
+    # get_currency_name will raise ValueError for invalid codes.
+    cleaned_df["currency_name"] = cleaned_df["currency_code"].apply(
+        get_currency_name
+    )
+
+    cleaned_df = cleaned_df.drop_duplicates(
+        subset=["currency_code"],
+        keep= "first",
+    )
 
     return cleaned_df

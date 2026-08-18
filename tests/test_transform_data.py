@@ -91,3 +91,31 @@ def test_transform_currency_raises_error_if_missing_currency_code():
 
     with pytest.raises(ValueError):
         transform_currency(mock_df)
+
+def test_transform_currency_raises_error_for_invalid_code():
+    mock_df = pd.DataFrame(
+            {
+                "currency_id": [1, 2],
+                "currency_code": ["Apple", "Banana"],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-03", "2026-01-04"],
+            }
+        )
+
+    with pytest.raises(ValueError):
+            transform_currency(mock_df)
+
+def test_transform_currency_standardises_currency_codes():
+    mock_df = pd.DataFrame(
+            {
+                "currency_id": [1, 2],
+                "currency_code": ["gbp", "usd"],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-03", "2026-01-04"],
+            }
+        )
+
+    result_df = transform_currency(mock_df)
+
+    assert result_df["currency_code"][0] == "GBP"
+    assert result_df["currency_code"][1] == "USD"
