@@ -1,7 +1,7 @@
 
 import pandas as pd
 from transform.transform_counterparty import clean_counterparty_data
-def test_clean_counterparty_data_removes_rows_where_counterparty_id__and_legal_address_id_is_missing():
+def test_clean_counterparty_data_removes_rows_where_counterparty_id_and_legal_address_id_is_missing():
     input_df = pd.DataFrame({
         "counterparty_id": [1, 2, None],
         "counterparty_legal_name": ["Company A", "Company B", "Company C"],
