@@ -87,3 +87,23 @@ def transform_staff(s_df, d_df):
     cleaned_df = combined_df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
 
     return cleaned_df
+
+def transform_location(df):
+    """Transforms raw address data into the dim_location format.
+    Drops rows with duplicate address ids, removes created_at and last_updated columns,
+    and changes the "address_id" column to "location_id".
+    Any rows with missing data are dropped.
+    """
+     # drop rows with duplicate address ids
+    cleaned_df = df.drop_duplicates(subset="address_id", keep="last")
+
+    # drop created_at and last_updated column
+    cleaned_df = cleaned_df.drop(columns=['created_at', 'last_updated'])
+
+    # rename "address_id" column to "location_id"
+    cleaned_df = cleaned_df.rename(columns={'address_id': 'location_id'})
+
+    # remove rows with missing data, except for address_line_2 and district columns
+    cleaned_df = cleaned_df.replace(["NaN", "nan", "None", ""], np.nan).dropna(subset=["location_id", "address_line_1", "city", "postal_code", "country", "phone"])
+
+    return cleaned_df
