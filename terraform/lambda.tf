@@ -40,6 +40,11 @@ resource "aws_lambda_function" "ingest_raw_data" {
       INGEST_BUCKET = aws_s3_bucket.ingestion_zone.id
     }
   }
+
+  logging_config {
+    log_format = "Text"
+    log_group  = aws_cloudwatch_log_group.ingest_function_log_group.name
+  }
 }
 
 data "archive_file" "ingest_function" {

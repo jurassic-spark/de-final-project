@@ -14,6 +14,8 @@ lambda_layer/build/
 #Terraform plan files
 *.tfplan
 
+*.tfvars
+
 # Terraform generated Lambda deployment packages
 terraform/function.zip
 terraform/lambda_layer.zip
