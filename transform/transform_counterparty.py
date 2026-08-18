@@ -1,66 +1,154 @@
 import pandas as pd
+import s3fs
 
-# pd.set_option("display.max_columns", None)
-# pd.set_option("display.width", None)
+from transform.transformed_design import read_tables_from_s3
 
-bucket = "js-final-proj-ingested-194169601943-dev"
 
-df = pd.read_parquet(
-    f"s3://{bucket}/raw/counterparty/"
-)
+def get_dataframe_from_s3(
+    bucket: str,
+    object_key: str,
+) -> pd.DataFrame:
+    """Read a Parquet file from S3 and return it as a pandas DataFrame."""
+    fs = s3fs.S3FileSystem()
+    s3_path = f"s3://{bucket}/{object_key}"
 
-print(df.head(20))
+    try:
+        return pd.read_parquet(
+            s3_path,
+            filesystem=fs,
+        )
+    except Exception as error:
+        raise RuntimeError(
+            f"Failed to read parquet data from {s3_path}"
+        ) from error
 
-print(df.dtypes)
 
-print (df.shape)
-print(df.isna().sum())
-
-def clean_counterparty_data(df):
+def clean_counterparty_data(df) -> pd.DataFrame:
+    """Clean counterparty data."""
     df = df.copy()
     df = df.drop_duplicates()
     df.columns = df.columns.str.strip()
+
     text_cols = [
         "counterparty_legal_name",
         "delivery_contact",
         "commercial_contact",
+        "last_updated",
         "created_at",
-        "last_updated"
-        
     ]
-    # stripping white space
+
     for col in text_cols:
-        df[col] = df[col].str.strip()
+        if col in df.columns:
+            df[col] = df[col].astype("string").str.strip().str.lower()
 
     df = df.replace("", pd.NA)
-
     df = df.dropna(subset=["counterparty_id", "legal_address_id"])
-    df = df.sort_values("last_updated")
-    # drops rows if duplicate counterparty_id
+
     df = df.drop_duplicates(
         subset=["counterparty_id"],
-
-        keep="last"
-
+        keep="last",
     )
-    # row numbers are reset after dropping rows
+
     df = df.reset_index(drop=True)
+
     return df
 
-cleaned_counterparty_df = clean_counterparty_data(df)
 
-print(cleaned_counterparty_df.head(20))
-print(cleaned_counterparty_df.shape)
-print(cleaned_counterparty_df.isna().sum())
+def clean_address_data(df) -> pd.DataFrame:
+    """Clean address data."""
+    address_df = df.copy()
+    address_df = address_df.drop_duplicates()
+    address_df.columns = address_df.columns.str.strip()
+
+    text_cols = [
+        "address_line_1",
+        "address_line_2",
+        "district",
+        "city",
+        "postal_code",
+        "country",
+    ]
+
+    for col in text_cols:
+        if col in address_df.columns:
+            address_df[col] = (
+                address_df[col]
+                .astype("string")
+                .str.strip()
+                .str.lower()
+            )
+
+    if "phone" in address_df.columns:
+        address_df["phone"] = address_df["phone"].astype("string").str.strip()
+
+    address_df = address_df.replace("", pd.NA)
+    address_df = address_df.dropna(subset=["address_id"])
+
+    address_df = address_df.drop_duplicates(
+        subset=["address_id"],
+        keep="last",
+    )
+
+    address_df = address_df.reset_index(drop=True)
+
+    return address_df
 
 
-print("\nAfter cleaning:")
-print(cleaned_counterparty_df.head(20))
-print(cleaned_counterparty_df.shape)
-print(cleaned_counterparty_df.isna().sum())
+def create_dim_counterparty(
+    cleaned_counterparty_df: pd.DataFrame,
+    cleaned_address_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Create dim_counterparty by joining counterparty and address data."""
+
+    dim_counterparty_df = cleaned_counterparty_df.merge(
+        cleaned_address_df,
+        how="left",
+        left_on="legal_address_id",
+        right_on="address_id",
+    )
+
+    dim_counterparty_df = dim_counterparty_df[
+        [
+            "counterparty_id",
+            "counterparty_legal_name",
+            "address_line_1",
+            "address_line_2",
+            "district",
+            "city",
+            "postal_code",
+            "country",
+            "phone",
+        ]
+    ].rename(columns={
+        "address_line_1": "counterparty_legal_address_line_1",
+        "address_line_2": "counterparty_legal_address_line_2",
+        "district": "counterparty_legal_district",
+        "city": "counterparty_legal_city",
+        "postal_code": "counterparty_legal_postal_code",
+        "country": "counterparty_legal_country",
+        "phone": "counterparty_legal_phone_number",
+    })
+
+    return dim_counterparty_df
+
+
+def transform_counterparty() -> pd.DataFrame:
+    """Read, clean, and transform counterparty data."""
+
+    counterparty_df = read_tables_from_s3("counterparty")
+    address_df = read_tables_from_s3("address")
+
+    cleaned_counterparty_df = clean_counterparty_data(counterparty_df)
+    cleaned_address_df = clean_address_data(address_df)
+
+    dim_counterparty_df = create_dim_counterparty(
+        cleaned_counterparty_df,
+        cleaned_address_df,
+    )
+
+    return dim_counterparty_df
 
 
 
-
-
+dim_counterparty_df = transform_counterparty()
 
