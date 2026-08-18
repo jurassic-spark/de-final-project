@@ -2,9 +2,10 @@
 *__pycache__/
 bin
 .venv
-lambda_layer/build/
-lambda_layer
 .python-version
+
+# Generated Lambda layer dependencies
+lambda_layers/*/build/
 
 # Local .terraform directories
 **/.terraform/*
@@ -13,11 +14,10 @@ lambda_layer
 *.tfstate
 *.tfstate.*
 
-#Terraform plan files
+# Terraform plan files
 *.tfplan
 
 *.tfvars
 
 # Terraform generated Lambda deployment packages
-terraform/function.zip
-terraform/lambda_layer.zip
+terraform/*.zip
