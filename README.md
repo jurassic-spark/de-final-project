@@ -80,7 +80,7 @@ Build both layers with:
 bash lambda_layers/build.sh
 ```
 
-The build script uses a Python 3.14 Docker container so that the generated dependencies are compatible with the Lambda runtime.
+The build script uses a Python 3.13 Docker container so that the generated dependencies are compatible with the Lambda runtime.
 
 This creates:
 
@@ -143,7 +143,7 @@ The Terraform workflow:
 
 ```text
 - Checks out the repository
-- Sets up Python 3.14
+- Sets up Python 3.13
 - Builds the ingest and transform Lambda layers
 - Sets up Terraform
 - Runs terraform init
