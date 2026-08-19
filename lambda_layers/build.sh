@@ -14,7 +14,7 @@ for LAYER in ingest transform; do
         --user "$(id -u):$(id -g)" \
         -e HOME=/tmp \
         -v "${LAYER_DIR}:/layer" \
-        python:3.14 \
+        python:3.13 \
         python -m pip install \
             --no-cache-dir \
             -r /layer/requirements.txt \
