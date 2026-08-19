@@ -78,7 +78,7 @@ def transform_currency(df: pd.DataFrame) -> pd.DataFrame:
 def transform_staff(s_df, d_df):
     """Transforms raw staff data into the dim_staff format using supplementary department data.
     Drops rows with duplicate staff and department ids and merges raw staff and department tables.
-    Any rows with missing data are dropped.
+    Any rows with missing data are dropped and column order is corrected.
     """
     # drop rows with duplicate staff ids and drop created_at and last_updated column from staff
     staff_df = s_df.drop_duplicates(subset="staff_id", keep="last").drop(columns=['created_at', 'last_updated'])
@@ -91,6 +91,9 @@ def transform_staff(s_df, d_df):
 
     # remove rows with missing data
     cleaned_df = combined_df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
+
+    column_order = ['staff_id', 'first_name', 'last_name', 'department_name', 'location', 'email_address']
+    cleaned_df = cleaned_df[column_order]
 
     return cleaned_df
 
@@ -245,6 +248,47 @@ def transform_counterparty() -> pd.DataFrame:
 
     return dim_counterparty_df
 
+def transform_sales(df):
+    """Transforms raw sales data into the fact_sales format.
+    Splits both the created_at and last_updated columns into two columns for date and time.
+  
+    """
+    # remove duplicates
+    df.drop_duplicates(inplace=True)
+
+    # add sales_record_id column
+    df.insert(0, "sales_record_id", range(1, len(df) + 1))
+
+    # split created_at into two separate date and time columns
+    df['created_date'] = pd.to_datetime(df['created_at'], format="mixed").dt.date
+    df['created_time'] = pd.to_datetime(df['created_at'], format="mixed").dt.time
+
+    # split last_updated into two separate date and time columns
+    df['last_updated_date'] = pd.to_datetime(df['last_updated'], format="mixed").dt.date
+    df['last_updated_time'] = pd.to_datetime(df['last_updated'], format="mixed").dt.time
+
+    # drop redundant created_at and last_updated columns
+    cleaned_df = df.drop(columns=['created_at', 'last_updated'])
+
+    # change agreed_delivery_date and agreed_delivery_date column types to datetime
+    cleaned_df['agreed_delivery_date'] = pd.to_datetime(cleaned_df['agreed_delivery_date'])
+    cleaned_df['agreed_delivery_date'] = pd.to_datetime(cleaned_df['agreed_payment_date'])
+
+    # rename staff_id column
+    cleaned_df = cleaned_df.rename(columns={'staff_id': 'sales_staff_id'})
+
+    # remove rows with missing data
+    cleaned_df = cleaned_df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
+
+    # correct column order
+    column_order = ["sales_record_id", "sales_order_id", "created_date", 
+        "created_time", "last_updated_date", "last_updated_time", "sales_staff_id", 
+        "counterparty_id", "units_sold", "unit_price", "currency_id", "design_id",
+        "agreed_payment_date", "agreed_delivery_date", "agreed_delivery_location_id" 
+        ]
+    cleaned_df = cleaned_df[column_order]
+    
+    return cleaned_df
 
 
 

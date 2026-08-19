@@ -10,6 +10,7 @@ from transform.transform_data import (
     transform_currency,
     transform_staff,
     transform_location,
+    transform_sales,
 )
 
 
@@ -271,4 +272,83 @@ def test_transform_location_removes_rows_with_missing_values():
     result = transform_location(mock_df)
     repeated_rows = result[result["location_id"].duplicated(keep=False)]
     assert len(repeated_rows) == 0
+    assert len(result) == 1
+
+def test_transform_sales_returns_df():
+    mock_df = pd.DataFrame(
+            {
+                "sales_order_id": [1, 2],
+                "created_at": ["2026-01-01", "2026-01-02"],
+                "last_updated": ["2026-01-01", "2026-01-02"],
+                "design_id": [1, 2],
+                "staff_id": [1, 2],
+                "counterparty_id": [1, 2],
+                "units_sold": [4734, 27354],
+                "unit_price": [1.45, 1.76],
+                "currency_id": [1, 2],
+                "agreed_delivery_date": ["2026-01-01", "2026-01-02"],
+                "agreed_payment_date": ["2026-01-03", "2026-01-04"],
+                "agreed_delivery_location_id": [1, 2],
+            }
+        )
+    result = transform_sales(mock_df)
+    assert isinstance(result, pd.DataFrame)
+    assert len(result.columns) == 15
+    assert "sales_record_id" in result.columns
+    assert "sales_order_id" in result.columns
+    assert "created_date" in result.columns
+    assert "created_time" in result.columns
+    assert "last_updated_date" in result.columns
+    assert "last_updated_time" in result.columns
+    assert "sales_staff_id" in result.columns
+    assert "counterparty_id" in result.columns
+    assert "units_sold" in result.columns
+    assert "unit_price" in result.columns
+    assert "currency_id" in result.columns
+    assert "design_id" in result.columns
+    assert "agreed_payment_date" in result.columns
+    assert "agreed_delivery_date" in result.columns
+    assert "agreed_delivery_location_id" in result.columns
+
+
+def test_transform_sales_returns_df_with_no_duplicates():
+    mock_df = pd.DataFrame(
+            {
+                "sales_order_id": [1, 1],
+                "created_at": ["2026-01-01", "2026-01-01"],
+                "last_updated": ["2026-01-02", "2026-01-02"],
+                "design_id": [1, 1],
+                "staff_id": [3, 3],
+                "counterparty_id": [2, 2],
+                "units_sold": [4734, 4734],
+                "unit_price": [1.45, 1.45],
+                "currency_id": [5, 5],
+                "agreed_delivery_date": ["2026-01-03", "2026-01-03"],
+                "agreed_payment_date": ["2026-01-02", "2026-01-02"],
+                "agreed_delivery_location_id": [2, 2],
+            }
+        )
+    result = transform_sales(mock_df)
+    repeated_orders = result[result["sales_order_id"].duplicated(keep=False)]
+    assert len(repeated_orders) == 0
+    assert len(result) == 1
+
+def test_transform_sales_removes_rows_with_missing_values():
+    mock_df = pd.DataFrame(
+            {
+                "sales_order_id": [1, 1],
+                "created_at": ["2026-01-01", "2026-01-01"],
+                "last_updated": ["2026-01-02", "2026-01-02"],
+                "design_id": [1, None],
+                "staff_id": [3, 3],
+                "counterparty_id": [2, 2],
+                "units_sold": [4734, 4734],
+                "unit_price": [1.45, 1.45],
+                "currency_id": [5, 5],
+                "agreed_delivery_date": ["2026-01-03", "2026-01-03"],
+                "agreed_payment_date": ["2026-01-02", "2026-01-02"],
+                "agreed_delivery_location_id": [2, 2],
+            }
+        )
+    result = transform_sales(mock_df)
     assert len(result) == 1
