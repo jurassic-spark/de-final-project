@@ -247,7 +247,7 @@ def transform_sales(df):
     
     return cleaned_df
 
-def create_dim_date(start_date, end_date, time_stamp):
+def create_dim_date(start_date, end_date):
 
     """ this function create dim_date table 
        it takes the date range as start_date, end_date
@@ -272,13 +272,7 @@ def create_dim_date(start_date, end_date, time_stamp):
         "quarter": dates.quarter
     })
 
-    
-
-    dim_date.to_parquet(
-    f"s3://js-final-proj-processed-194169601943-dev/processed/dim_date/dim_date_{time_stamp}.parquet",
-    index=False
-    )
-    return
+    return dim_date
 
 def transform_design(df):
    
@@ -330,10 +324,19 @@ def lambda_handler(event, context):
         transformed_df = function(df)
         save_dataframe_to_s3_parquet(
             dataframe=transformed_df, 
-            bucket_name="js-final-proj-processed-194169601943-dev", 
+            bucket_name=os.environ["TRANSFORM_BUCKET"],
             table_name=target_table, 
             extracted_ts=extracted_ts
         )
-    
-    create_dim_date("2022-01-01", "2027-01-01", extracted_ts)
 
+    s3_client = boto3.client("s3")
+    dim_date_objects = s3_client.list_objects_v2(Bucket=os.environ["TRANSFORM_BUCKET"], Prefix="processed/dim_date")
+    
+    if dim_date_objects.get("KeyCount", 0) == 0:
+        dim_date = create_dim_date("2022-01-01", "2027-01-01")
+        save_dataframe_to_s3_parquet(
+                    dataframe=dim_date, 
+                    bucket_name=os.environ["TRANFORM_BUCKET"],
+                    table_name='dim_date', 
+                    extracted_ts=extracted_ts
+                )
