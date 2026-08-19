@@ -54,9 +54,9 @@ jobs:
       # Run Terraform plan to create execution plan
       - name: Terraform Plan
         working-directory: terraform
-        run: terraform plan
+        run: terraform plan -var="notification_emails = [ "genevievegarwood@gmail.com" ]"
 
       #Run Terraform apply
       - name: Terraform apply
         working-directory: terraform
-        run: terraform apply -auto-approve
+        run: terraform apply -var="notification_emails = [ "genevievegarwood@gmail.com" ]" -auto-approve
