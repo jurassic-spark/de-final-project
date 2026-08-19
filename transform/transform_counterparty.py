@@ -148,7 +148,3 @@ def transform_counterparty() -> pd.DataFrame:
 
     return dim_counterparty_df
 
-
-
-dim_counterparty_df = transform_counterparty()
-
