@@ -1,10 +1,8 @@
 from unittest.mock import MagicMock, patch
 import pycountry
-
 import pytest
-
 import pandas as pd
-
+from unittest import mock
 from transform.transform_data import (
     get_dataframe_from_s3,
     get_currency_name,
@@ -12,13 +10,14 @@ from transform.transform_data import (
     transform_staff,
     transform_location,
     transform_sales,
+    lambda_handler
 )
 
 
 def test_get_dataframe_from_s3_returns_a_df():
     # Define the mock S3 location.
     bucket = "mock-s3"
-    object_key = "raw/currency/currency.parquet"
+    object_key = "currency/currency.parquet"
 
     # Define the DataFrame pandas should return.
     expected_df = pd.DataFrame(
@@ -53,7 +52,7 @@ def test_get_dataframe_from_s3_returns_a_df():
 
     # Check pandas was called with the correct S3 path and filesystem.
     mock_read_parquet.assert_called_once_with(
-        "s3://mock-s3/raw/currency/currency.parquet",
+        "mock-s3/raw/currency/currency.parquet",
         filesystem=mock_filesystem,
     )
 
@@ -125,28 +124,18 @@ def test_transform_currency_standardises_currency_codes():
     assert result_df["currency_code"][1] == "USD"
 
 def test_transform_staff_returns_df():
-    mock_s_df = pd.DataFrame(
+    mock_df = pd.DataFrame(
                 {
                     "staff_id": [1, 2],
                     "first_name": ["jane", "doe"],
                     "last_name": ["john", "smith"],
-                    "department_id": [1, 2],
                     "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
-                    "created_at": ["2026-01-01", "2026-01-02"],
-                    "last_updated": ["2026-01-03", "2026-01-04"],
+                    "department_name": ["Finance", "Comms"],
+                    "location": ["Leeds", "Manchester"],
                 }
             )
-    mock_d_df = pd.DataFrame(
-                {
-                    "department_id": [1, 2],
-                    "department_name": ["finance", "comms"],
-                    "location": ["manchester", "leeds"],
-                    "manager": ["john", "ali"],
-                    "created_at": ["2026-01-01", "2026-01-02"],
-                    "last_updated": ["2026-01-03", "2026-01-04"],
-                }
-            )
-    result = transform_staff(mock_s_df, mock_d_df)
+    
+    result = transform_staff(mock_df)
     assert isinstance(result, pd.DataFrame)
     assert len(result.columns) == 6
     assert 'staff_id' in result.columns
@@ -158,54 +147,34 @@ def test_transform_staff_returns_df():
 
 
 def test_transform_staff_returns_df_with_no_duplicates():
-    mock_s_df = pd.DataFrame(
+    mock_df = pd.DataFrame(
                     {
                         "staff_id": [1, 1],
                         "first_name": ["jane", "doe"],
                         "last_name": ["john", "smith"],
-                        "department_id": [1, 2],
                         "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
-                        "created_at": ["2026-01-01", "2026-01-02"],
-                        "last_updated": ["2026-01-03", "2026-01-04"],
+                        "department_name": ["Finance", "Comms"],
+                        "location": ["Leeds", "Manchester"],
                     }
                 )
-    mock_d_df = pd.DataFrame(
-                    {
-                        "department_id": [1, 2],
-                        "department_name": ["finance", "comms"],
-                        "location": ["manchester", "leeds"],
-                        "manager": ["john", "ali"],
-                        "created_at": ["2026-01-01", "2026-01-02"],
-                        "last_updated": ["2026-01-03", "2026-01-04"],
-                    }
-                )
-    result = transform_staff(mock_s_df, mock_d_df)
+    
+    result = transform_staff(mock_df)
     repeated_staff_ids = result[result["staff_id"].duplicated(keep=False)]
     assert len(repeated_staff_ids) == 0
 
 def test_transform_staff_removes_rows_with_null_values():
-    mock_s_df = pd.DataFrame(
+    mock_df = pd.DataFrame(
                     {
                         "staff_id": [1, 2],
-                        "first_name": ["jane", "john"],
-                        "last_name": ["doe", "smith"],
-                        "department_id": [1, 2],
+                        "first_name": ["jane", "doe"],
+                        "last_name": ["", "smith"],
                         "email_address": ["janedoe@emailaddress.com", "johnsmith@emailaddress.com"],
-                        "created_at": ["2026-01-01", "2026-01-02"],
-                        "last_updated": ["2026-01-03", "2026-01-04"],
+                        "department_name": ["Finance", "Comms"],
+                        "location": ["Leeds", "Manchester"],
                     }
                 )
-    mock_d_df = pd.DataFrame(
-                    {
-                        "department_id": [1, 2],
-                        "department_name": ["finance", "comms"],
-                        "location": ["manchester", ""],
-                        "manager": ["john", "ali"],
-                        "created_at": ["2026-01-01", "2026-01-02"],
-                        "last_updated": ["2026-01-03", "2026-01-04"],
-                    }
-                )
-    result = transform_staff(mock_s_df, mock_d_df)
+    
+    result = transform_staff(mock_df)
     assert len(result) == 1
 
 def test_transform_location_returns_df():
@@ -353,3 +322,60 @@ def test_transform_sales_removes_rows_with_missing_values():
         )
     result = transform_sales(mock_df)
     assert len(result) == 1
+
+
+@mock.patch("transform.transform_data.save_dataframe_to_s3_parquet")
+@mock.patch("transform.transform_data.create_merged_counterparty_dataframe")
+@mock.patch("transform.transform_data.create_merged_staff_dataframe")
+@mock.patch("transform.transform_data.create_dim_date")
+@mock.patch("transform.transform_data.transform_location")
+@mock.patch("transform.transform_data.transform_counterparty")
+@mock.patch("transform.transform_data.transform_staff")
+@mock.patch("transform.transform_data.transform_currency")
+@mock.patch("transform.transform_data.transform_design")
+@mock.patch("transform.transform_data.transform_sales")
+@mock.patch("transform.transform_data.boto3.client")
+def test_lambda_handler_extracts_all_data(
+    mock_boto_client,
+    mock_transform_sales,
+    mock_transform_design,
+    mock_transform_currency,
+    mock_transform_staff,
+    mock_transform_counterparty,
+    mock_transform_location,
+    mock_create_dim_date,
+    mock_create_merged_staff_dataframe,
+    mock_create_merged_counterparty_dataframe,
+    mock_save_dataframe,
+    monkeypatch,
+):
+    monkeypatch.setenv("TRANSFORM_BUCKET", "mock-s3")
+
+    mock_s3_client = mock.MagicMock()
+    mock_boto_client.return_value = mock_s3_client
+
+    mock_transform_sales.return_value = pd.DataFrame()
+    mock_transform_design.return_value = pd.DataFrame()
+    mock_transform_currency.return_value = pd.DataFrame()
+    mock_transform_staff.return_value = pd.DataFrame()
+    mock_transform_counterparty.return_value = pd.DataFrame()
+    mock_transform_location.return_value = pd.DataFrame()
+    mock_create_dim_date.return_value = pd.DataFrame()
+    mock_create_merged_staff_dataframe.return_value = pd.DataFrame()
+    mock_create_merged_counterparty_dataframe.return_value = pd.DataFrame()
+
+    lambda_handler({}, None)
+
+    call_list = mock_save_dataframe.call_args_list
+    table_names = []
+    for call in call_list:
+        table_name = call.kwargs["table_name"]
+        table_names.append(table_name)
+
+    assert mock_save_dataframe.call_count == 6
+    assert 'fact_sales' in table_names
+    assert 'dim_design' in table_names
+    assert 'dim_currency' in table_names
+    assert 'dim_staff' in table_names
+    assert 'dim_counterparty' in table_names
+    assert 'dim_location' in table_names
