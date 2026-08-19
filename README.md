@@ -100,11 +100,28 @@ The Lambda layers must be built before Terraform attempts to package them.
 
 ### 6. Initialise Terraform
 
+This is a shared project and users could be provisioning with terraform regularly.
+To avoid conflicts and issues this repository utilises a tf.state shared backend.
+To ensure you are provisioning with terraform cleanly esnure you run;
+
 ```bash
 cd terraform
 terraform init
 terraform validate
 terraform plan
+```
+
+before applying anything. If terraform suggests a complete rebuild or throws up an error,
+you will need to investigate the shared backend tf.state file and potenitally reconfigure using;
+
+```bash
+terraform init --reconfigure
+```
+
+If the tf.state has moved, there be need to run;
+
+```bash
+terraform init --migrate-state
 ```
 
 Terraform packages the generated Lambda layer directories into ZIP archives and provisions the corresponding AWS Lambda layers.
