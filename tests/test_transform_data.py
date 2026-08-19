@@ -327,6 +327,7 @@ def test_transform_sales_removes_rows_with_missing_values():
 @mock.patch("transform.transform_data.save_dataframe_to_s3_parquet")
 @mock.patch("transform.transform_data.create_merged_counterparty_dataframe")
 @mock.patch("transform.transform_data.create_merged_staff_dataframe")
+@mock.patch("transform.transform_data.get_dataframe_from_s3")
 @mock.patch("transform.transform_data.create_dim_date")
 @mock.patch("transform.transform_data.transform_location")
 @mock.patch("transform.transform_data.transform_counterparty")
@@ -344,6 +345,7 @@ def test_lambda_handler_extracts_all_data(
     mock_transform_counterparty,
     mock_transform_location,
     mock_create_dim_date,
+    mock_get_dataframe_from_s3,
     mock_create_merged_staff_dataframe,
     mock_create_merged_counterparty_dataframe,
     mock_save_dataframe,
@@ -353,7 +355,8 @@ def test_lambda_handler_extracts_all_data(
 
     mock_s3_client = mock.MagicMock()
     mock_boto_client.return_value = mock_s3_client
-
+    
+    mock_get_dataframe_from_s3.return_value = pd.DataFrame()
     mock_transform_sales.return_value = pd.DataFrame()
     mock_transform_design.return_value = pd.DataFrame()
     mock_transform_currency.return_value = pd.DataFrame()
