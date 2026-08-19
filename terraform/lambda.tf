@@ -32,7 +32,7 @@ resource "aws_lambda_function" "ingest_raw_data" {
   role          = aws_iam_role.extract_lambda_role.arn
   handler       = "extract_data.lambda_handler"
   depends_on    = [aws_cloudwatch_log_group.ingest_function_log_group]
-  runtime       = "python3.14"
+  runtime       = "python3.13"
   architectures = ["x86_64"]
 
   timeout     = 30
@@ -42,7 +42,7 @@ resource "aws_lambda_function" "ingest_raw_data" {
 
   layers = [
     aws_lambda_layer_version.lambda_layer.arn,
-    "arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python314:9"
+    "arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python313:9"
   ]
 
   environment {
@@ -72,7 +72,7 @@ resource "aws_lambda_layer_version" "lambda_layer" {
   source_code_hash = data.archive_file.lambda_layer.output_base64sha256
 
   layer_name          = "ingest_function_layer"
-  compatible_runtimes = ["python3.14"]
+  compatible_runtimes = ["python3.13"]
 }
 
 # Package the custom ingest dependencies.
@@ -90,7 +90,7 @@ resource "aws_lambda_layer_version" "transform_layer" {
   source_code_hash = data.archive_file.transform_layer.output_base64sha256
 
   layer_name          = "transform_function_layer"
-  compatible_runtimes = ["python3.14"]
+  compatible_runtimes = ["python3.13"]
 }
 
 # Package the custom transform dependencies.

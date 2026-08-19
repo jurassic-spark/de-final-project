@@ -112,7 +112,7 @@ terraform plan
 ```
 
 before applying anything. If terraform suggests a complete rebuild or throws up an error,
-you will need to investigate the shared backend tf.state file and potenitally reconfigure using;
+you will need to investigate the shared backend tf.state file and potentially reconfigure using;
 
 ```bash
 terraform init --reconfigure

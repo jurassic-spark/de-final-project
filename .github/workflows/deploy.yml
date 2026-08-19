@@ -31,7 +31,7 @@ jobs:
       - name: Python Setup
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.13"
 
       # Build the Python dependencies required by the Lambda layers.
       - name: Build Lambda layers
@@ -50,3 +50,13 @@ jobs:
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
+
+      # Run Terraform plan to create execution plan
+      - name: Terraform Plan
+        working-directory: terraform
+        run: terraform plan
+
+      #Run Terraform apply
+      - name: Terraform apply
+        working-directory: terraform
+        run: terraform apply -auto-approve
