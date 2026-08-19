@@ -1,8 +1,11 @@
 import pandas as pd
 import s3fs
 import pycountry
-from transform.read_table import read_tables_from_s3
 import numpy as np
+from io import BytesIO
+import boto3
+import os
+from datetime import datetime
 
 def get_dataframe_from_s3(
     bucket: str,
@@ -10,12 +13,9 @@ def get_dataframe_from_s3(
 ) -> pd.DataFrame:
     """Read a Parquet file from S3 and return it as a pandas DataFrame."""
     fs = s3fs.S3FileSystem()
-    s3_path = f"s3://{bucket}/{object_key}"
+    s3_path = f"{bucket}/raw/{object_key}"
     try:
-        return pd.read_parquet(
-            f"s3://{bucket}/{object_key}",
-            filesystem=fs,
-        )
+        return pd.read_parquet(s3_path, filesystem=fs)
     except Exception as error:
         raise RuntimeError(
             f"Failed to read parquet data from {s3_path}"
@@ -75,27 +75,43 @@ def transform_currency(df: pd.DataFrame) -> pd.DataFrame:
 
     return cleaned_df
 
-def transform_staff(s_df, d_df):
-    """Transforms raw staff data into the dim_staff format using supplementary department data.
-    Drops rows with duplicate staff and department ids and merges raw staff and department tables.
-    Any rows with missing data are dropped and column order is corrected.
-    """
-    # drop rows with duplicate staff ids and drop created_at and last_updated column from staff
-    staff_df = s_df.drop_duplicates(subset="staff_id", keep="last").drop(columns=['created_at', 'last_updated'])
 
+def create_merged_staff_dataframe():
+    """ 
+    Loads raw staff and department tables.
+    Drops rows with duplicate staff and department ids and merges raw tables.
+    """
+    # load dataframes
+    staff_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'staff')
+    department_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'department')
+
+    # drop rows with duplicate staff ids and drop created_at and last_updated column from staff
+    staff_df = staff_df.drop_duplicates(subset="staff_id", keep="last").drop(columns=['created_at', 'last_updated'])
+        
     # drop rows with duplicate department ids and drop created_at and last_updated column from department
-    department_df = d_df.drop_duplicates(subset="department_id", keep="last").drop(columns=['manager', 'created_at', 'last_updated'])
+    department_df = department_df.drop_duplicates(subset="department_id", keep="last").drop(columns=['manager', 'created_at', 'last_updated'])
 
     # merge staff and department dfs and drop department_id column
     combined_df = pd.merge(staff_df, department_df, how="left", on=["department_id", "department_id"]).drop(columns=['department_id'])
 
+    return combined_df
+
+
+def transform_staff(df):
+    """
+    Any rows with missing data are dropped and column order is corrected.
+    """
     # remove rows with missing data
-    cleaned_df = combined_df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
+    cleaned_df = df.replace(["NaN", "nan", "None", ""], np.nan).dropna()
+
+    # drop duplicates
+    cleaned_df = cleaned_df.drop_duplicates(subset="staff_id", keep="last")
 
     column_order = ['staff_id', 'first_name', 'last_name', 'department_name', 'location', 'email_address']
     cleaned_df = cleaned_df[column_order]
 
     return cleaned_df
+
 
 def transform_location(df):
     """Transforms raw address data into the dim_location format.
@@ -118,90 +134,12 @@ def transform_location(df):
     return cleaned_df
 
 
-
-
-
-
-
-def clean_counterparty_data(df) -> pd.DataFrame:
-    """Clean counterparty data."""
-    df = df.copy()
-    df = df.drop_duplicates()
-    df.columns = df.columns.str.strip()
-
-    text_cols = [
-        "counterparty_legal_name",
-        "delivery_contact",
-        "commercial_contact",
-        "last_updated",
-        "created_at",
-    ]
-
-    for col in text_cols:
-        if col in df.columns:
-            df[col] = df[col].astype("string").str.strip().str.lower()
-
-    df = df.replace("", pd.NA)
-    df = df.dropna(subset=["counterparty_id", "legal_address_id"])
-
-    df = df.drop_duplicates(
-        subset=["counterparty_id"],
-        keep="last",
-    )
-
-    df = df.reset_index(drop=True)
-
-    return df
-
-
-def clean_address_data(df) -> pd.DataFrame:
-    """Clean address data."""
-    address_df = df.copy()
-    address_df = address_df.drop_duplicates()
-    address_df.columns = address_df.columns.str.strip()
-
-    text_cols = [
-        "address_line_1",
-        "address_line_2",
-        "district",
-        "city",
-        "postal_code",
-        "country",
-    ]
-
-    for col in text_cols:
-        if col in address_df.columns:
-            address_df[col] = (
-                address_df[col]
-                .astype("string")
-                .str.strip()
-                .str.lower()
-            )
-
-    if "phone" in address_df.columns:
-        address_df["phone"] = address_df["phone"].astype("string").str.strip()
-
-    address_df = address_df.replace("", pd.NA)
-    address_df = address_df.dropna(subset=["address_id"])
-
-    address_df = address_df.drop_duplicates(
-        subset=["address_id"],
-        keep="last",
-    )
-
-    address_df = address_df.reset_index(drop=True)
-
-    return address_df
-
-
-def create_dim_counterparty(
-    cleaned_counterparty_df: pd.DataFrame,
-    cleaned_address_df: pd.DataFrame,
-) -> pd.DataFrame:
+def create_merged_counterparty_dataframe() -> pd.DataFrame:
     """Create dim_counterparty by joining counterparty and address data."""
-
-    dim_counterparty_df = cleaned_counterparty_df.merge(
-        cleaned_address_df,
+    counterparty_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'counterparty')
+    address_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'address')
+    dim_counterparty_df = counterparty_df.merge(
+        address_df,
         how="left",
         left_on="legal_address_id",
         right_on="address_id",
@@ -232,26 +170,45 @@ def create_dim_counterparty(
     return dim_counterparty_df
 
 
-def transform_counterparty() -> pd.DataFrame:
-    """Read, clean, and transform counterparty data."""
+def transform_counterparty(df) -> pd.DataFrame:
+    """Clean counterparty data."""
+    df = df.copy()
+    df = df.drop_duplicates()
+    df.columns = df.columns.str.strip()
 
-    counterparty_df = read_tables_from_s3("counterparty")
-    address_df = read_tables_from_s3("address")
+    text_cols = [
+        "counterparty_legal_name",
+        "counterparty_legal_address_line_1",
+        "counterparty_legal_address_line_2",
+        "counterparty_legal_district",
+        "counterparty_legal_city",
+        "counterparty_legal_postal_code",
+        "counterparty_legal_country"
+    ]
 
-    cleaned_counterparty_df = clean_counterparty_data(counterparty_df)
-    cleaned_address_df = clean_address_data(address_df)
+    for col in text_cols:
+        if col in df.columns:
+            df[col] = df[col].astype("string").str.strip().str.lower()
 
-    dim_counterparty_df = create_dim_counterparty(
-        cleaned_counterparty_df,
-        cleaned_address_df,
+    if "counterparty_legal_phone_number" in df.columns:
+        df["counterparty_legal_phone_number"] = df["counterparty_legal_phone_number"].astype("string").str.strip()
+
+    df = df.replace("", pd.NA)
+    df = df.dropna(subset=["counterparty_id"])
+
+    df = df.drop_duplicates(
+        subset=["counterparty_id"],
+        keep="last",
     )
 
-    return dim_counterparty_df
+    df = df.reset_index(drop=True)
+
+    return df
+
 
 def transform_sales(df):
     """Transforms raw sales data into the fact_sales format.
     Splits both the created_at and last_updated columns into two columns for date and time.
-  
     """
     # remove duplicates
     df.drop_duplicates(inplace=True)
@@ -290,6 +247,93 @@ def transform_sales(df):
     
     return cleaned_df
 
+def create_dim_date(start_date, end_date, time_stamp):
 
+    """ this function create dim_date table 
+       it takes the date range as start_date, end_date
+       and returns df date 
 
+    """
+
+    dates = pd.date_range(
+        start=start_date,
+        end=end_date,
+        freq="D"
+    )
+
+    dim_date = pd.DataFrame({
+        "date_id": dates,
+        "year": dates.year,
+        "month": dates.month,
+        "day": dates.day,
+        "day_of_week": dates.dayofweek + 1,
+        "day_name": dates.day_name(),
+        "month_name": dates.month_name(),
+        "quarter": dates.quarter
+    })
+
+    
+
+    dim_date.to_parquet(
+    f"s3://js-final-proj-processed-194169601943-dev/processed/dim_date/dim_date_{time_stamp}.parquet",
+    index=False
+    )
+    return
+
+def transform_design(df):
+   
+    # drop unwanted columns
+    df = df.drop(
+    columns=['created_at','last_updated']
+    )
+    # drop duplicate
+    df = df.drop_duplicates(
+    subset='design_id',
+    keep='last'
+    )
+    return df
+
+def save_dataframe_to_s3_parquet(dataframe, bucket_name, table_name, extracted_ts):
+    parquet_buffer = BytesIO()
+
+    timestamp = pd.to_datetime(extracted_ts).strftime("%Y%m%d_%H%M%S")
+
+    dataframe.to_parquet(parquet_buffer, index=False)
+
+    object_key = f"processed/{table_name}/{table_name}_{timestamp}.parquet"  # Potential specificity using timestamps here
+
+    s3_client = boto3.client("s3")
+
+    s3_client.put_object(
+        Bucket=bucket_name, Key=object_key, Body=parquet_buffer.getvalue()
+    )
+
+    return object_key
+
+def lambda_handler(event, context):
+
+    raw_tables = ["sales_order", "design", "currency", "staff", "counterparty", "address"]
+
+    target_tables = ["fact_sales", "dim_design", "dim_currency", "dim_staff", "dim_counterparty", "dim_location"]
+
+    transform_functions = [transform_sales, transform_design, transform_currency, transform_staff, transform_counterparty, transform_location]
+
+    extracted_ts = datetime.now().isoformat()
+
+    for raw_table, target_table, function in zip(raw_tables, target_tables, transform_functions):
+        if raw_table == "staff":
+            df = create_merged_staff_dataframe()
+        elif raw_table == "counterparty":
+            df = create_merged_counterparty_dataframe()
+        else:
+            df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", raw_table)
+        transformed_df = function(df)
+        save_dataframe_to_s3_parquet(
+            dataframe=transformed_df, 
+            bucket_name="js-final-proj-processed-194169601943-dev", 
+            table_name=target_table, 
+            extracted_ts=extracted_ts
+        )
+    
+    create_dim_date("2022-01-01", "2027-01-01", extracted_ts)
 
