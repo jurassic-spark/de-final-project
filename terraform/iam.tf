@@ -216,3 +216,81 @@ resource "aws_iam_role_policy_attachment" "load_lambda_vpc_attach" {
   role       = aws_iam_role.load_lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
+
+# Provision the IAM role for the pipeline execution step function
+resource "aws_iam_role" "sfn_assume_role" {
+  name               = "sfn-assume-role"
+  assume_role_policy = data.aws_iam_policy_document.sfn_assume_role_doc.json
+}
+
+# Define the Assume Role policy for the Pipeline step function to allow it to
+# assume a role
+data "aws_iam_policy_document" "sfn_assume_role_doc" {
+  statement {
+    principals {
+      type        = "Service"
+      identifiers = ["states.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+# Provision the IAM role for the scheduler
+resource "aws_iam_role" "scheduler_assume_role" {
+  name               = "scheduler-assume-role"
+  assume_role_policy = data.aws_iam_policy_document.scheduler_assume_role_doc.json
+}
+
+# Define the Assume Role policy for the scheduler to allow it to allow it to
+# assume a role
+data "aws_iam_policy_document" "scheduler_assume_role_doc" {
+  statement {
+    principals {
+      type        = "Service"
+      identifiers = ["scheduler.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+  }
+}
+
+# Provision the policy that allows the scheduler to trigger the step function
+resource "aws_iam_policy" "sfn_invoke_lambda_policy" {
+  name   = "sfn-invoke-lambda-policy"
+  policy = data.aws_iam_policy_document.sfn_allow_lambda_invoke.json
+}
+
+# Define the policy that allows the scheduler to trigger the step function
+data "aws_iam_policy_document" "sfn_allow_lambda_invoke" {
+  statement {
+    actions   = ["lambda:InvokeFunction"]
+    resources = [aws_lambda_function.ingest_raw_data.arn]
+  }
+}
+
+# Attach the lambda invokation policy to the step function
+resource "aws_iam_role_policy_attachment" "sfn_lambda_invokation_attach" {
+  role       = aws_iam_role.sfn_assume_role.name
+  policy_arn = aws_iam_policy.sfn_invoke_lambda_policy.arn
+}
+
+# Provision the policy that allows the scheduler to trigger the step function
+resource "aws_iam_policy" "scheduler_trigger_sfn" {
+  name   = "scheduler-trigger-sfn"
+  policy = data.aws_iam_policy_document.scheduler_allow_sfn_trigger.json
+}
+
+# Define the policy that allows the scheduler to trigger the step function
+data "aws_iam_policy_document" "scheduler_allow_sfn_trigger" {
+  statement {
+    actions   = ["states:StartExecution"]
+    resources = [aws_sfn_state_machine.pipeline_sfn.arn]
+  }
+}
+
+# Attach the scheduler step function trigger policy to the scheduler
+resource "aws_iam_role_policy_attachment" "scheduler_allow_sfn_trigger_attach" {
+  role       = aws_iam_role.scheduler_assume_role.name
+  policy_arn = aws_iam_policy.scheduler_trigger_sfn.arn
+}
