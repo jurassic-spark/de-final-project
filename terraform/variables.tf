@@ -4,5 +4,17 @@ variable "lambda_name" {
 }
 
 variable "notification_emails" {
-  type      = set(string)
+  type = set(string)
+}
+
+variable "warehouse_db_name" {
+  description = "Name of the warehouse PostgreSQL database"
+  type        = string
+  default     = "jurassic_sparks_warehouse"
+}
+
+variable "warehouse_master_username" {
+  description = "Master username for the warehouse database"
+  type        = string
+  default     = "postgres"
 }
