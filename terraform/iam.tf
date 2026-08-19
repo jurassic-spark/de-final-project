@@ -31,6 +31,13 @@ resource "aws_iam_role" "load_lambda_role" {
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
+## Runtime role for the Lambda that loads the schema
+# into the PostgresSQL warehouse
+resource "aws_iam_role" "schema_load_lambda_role" {
+  name_prefix        = "schema-load-lambda-"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
 # Looks up the existing Totesys credentials secret.
 data "aws_secretsmanager_secret" "totesys_credentials" {
   name = "totesys_database_credentials"
@@ -293,4 +300,26 @@ data "aws_iam_policy_document" "scheduler_allow_sfn_trigger" {
 resource "aws_iam_role_policy_attachment" "scheduler_allow_sfn_trigger_attach" {
   role       = aws_iam_role.scheduler_assume_role.name
   policy_arn = aws_iam_policy.scheduler_trigger_sfn.arn
+}
+
+resource "aws_iam_policy" "schema_load_lambda_secrets_policy" {
+  name = "schema-load-lambda-secrets-access"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid      = "ReadRDSCredentials"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_db_instance.warehouse.master_user_secret[0].secret_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "schema_load_lambda_secrets_policy_attach" {
+  role       = aws_iam_role.schema_load_lambda_role.name
+  policy_arn = aws_iam_policy.schema_load_lambda_secrets_policy.arn
 }

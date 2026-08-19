@@ -1,4 +1,4 @@
-variable "lambda_name" {
+variable "ingest_lambda_name" {
   type    = string
   default = "ingest_raw_data"
 }
@@ -17,4 +17,9 @@ variable "warehouse_master_username" {
   description = "Master username for the warehouse database"
   type        = string
   default     = "postgres"
+}
+
+variable "schema_load_lambda_name" {
+  type    = string
+  default = "schema_load_lambda"
 }
