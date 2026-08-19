@@ -6,9 +6,9 @@ from transform.read_table import read_tables_from_s3
 
 
 
-def transformed_design(table):
+def transformed_design(table,bucket):
     # read the table
-    df = read_tables_from_s3(table)
+    df = read_tables_from_s3(table,bucket)
 
     # drop unwanted columns
     df = df.drop(
