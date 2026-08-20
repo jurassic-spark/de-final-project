@@ -2,8 +2,15 @@ name: Terraform
 
 # Run on pushes and pull requests.
 on:
-  push:
   pull_request:
+
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
 
 # Give the workflow read access to the repository.
 permissions:
@@ -56,11 +63,11 @@ jobs:
         working-directory: terraform
         env:
           TF_VAR_notification_emails: '["genevievegarwood@gmail.com"]'
-        run: terraform plan
+        run: terraform plan -lock-timeout=5m
 
-      # Run Terraform apply
-      - name: Terraform apply
+      - name: Terraform Apply
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: terraform
         env:
           TF_VAR_notification_emails: '["genevievegarwood@gmail.com"]'
-        run: terraform apply -auto-approve
+        run: terraform apply -lock-timeout=5m -auto-approve tfplan
