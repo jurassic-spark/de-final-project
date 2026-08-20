@@ -227,9 +227,9 @@ def transform_sales(df):
     # drop redundant created_at and last_updated columns
     cleaned_df = df.drop(columns=['created_at', 'last_updated'])
 
-    # change agreed_delivery_date and agreed_delivery_date column types to datetime
+    # change agreed_delivery_date and agreed_payment_date column types to datetime
     cleaned_df['agreed_delivery_date'] = pd.to_datetime(cleaned_df['agreed_delivery_date'])
-    cleaned_df['agreed_delivery_date'] = pd.to_datetime(cleaned_df['agreed_payment_date'])
+    cleaned_df['agreed_payment_date'] = pd.to_datetime(cleaned_df['agreed_payment_date'])
 
     # rename staff_id column
     cleaned_df = cleaned_df.rename(columns={'staff_id': 'sales_staff_id'})
