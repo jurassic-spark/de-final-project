@@ -14,7 +14,8 @@ lambda_layers/*/build/
 *.tfstate
 *.tfstate.*
 
-# Terraform plan files
+# Terraform binary plan files
+terraform/tfplan*
 *.tfplan
 
 *.tfvars

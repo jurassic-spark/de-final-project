@@ -1,3 +1,10 @@
+import boto3
+import json
+import os
+from botocore.exceptions import ClientError
+import psycopg2
+
+sql_schema = """
 Drop TABLE IF EXISTS fact_sales_order CASCADE;
 Drop TABLE IF EXISTS dim_date;
 Drop TABLE IF EXISTS dim_staff;
@@ -98,3 +105,37 @@ ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_payment_date) REFERENCES di
 ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_delivery_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_delivery_location_id) REFERENCES dim_location (location_id) DEFERRABLE INITIALLY IMMEDIATE;
+"""
+
+def get_secret(secret_name):
+
+    region_name = "eu-west-2"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(service_name="secretsmanager", region_name=region_name)
+
+    try:
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        return json.loads(get_secret_value_response["SecretString"])
+
+    except ClientError as e:
+        raise e
+    
+def load_schema():
+    secrets = get_secret(os.environ["WAREHOUSE_SECRET_NAME"])
+
+
+    with psycopg2.connect(
+        user=os.environ["USER"], 
+        password = secrets["password"], 
+        dbname=os.environ["WAREHOUSE_NAME"], 
+        host=os.environ["HOST"], 
+        port=os.environ["PORT"],
+    ) as conn:
+
+        with conn.cursor() as cur:
+            cur.execute(sql_schema)
+
+def lambda_handler(event, context):
+    load_schema()

@@ -29,5 +29,5 @@ resource "aws_cloudwatch_metric_alarm" "ingest_function_error_alarm" {
   threshold                 = 1
   alarm_description         = "Alert when ingest function logs contain Error"
   insufficient_data_actions = []
-  alarm_actions = [aws_sns_topic.error_notification.arn]
+  alarm_actions             = [aws_sns_topic.error_notification.arn]
 }
