@@ -44,30 +44,29 @@ jobs:
       - name: Build Lambda layers
         run: bash lambda_layers/build.sh
 
-      # Install Terraform on the GitHub Actions runner.
+      # Install a fixed Terraform version.
       - name: Terraform Setup
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.9"
 
-      # Initialise the Terraform working directory.
       - name: Terraform Init
         working-directory: terraform
-        run: terraform init
+        run: terraform init -input=false
 
-      # Check that the Terraform configuration is valid.
       - name: Terraform Validate
         working-directory: terraform
         run: terraform validate
 
-      # Run Terraform plan to create execution plan
       - name: Terraform Plan
         working-directory: terraform
         env:
           TF_VAR_notification_emails: '["genevievegarwood@gmail.com"]'
-        run: terraform plan -lock-timeout=5m
+        run: terraform plan -input=false -lock-timeout=5m -out=tfplan
 
       - name: Terraform Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         working-directory: terraform
         env:
           TF_VAR_notification_emails: '["genevievegarwood@gmail.com"]'
-        run: terraform apply -lock-timeout=5m -auto-approve tfplan
+        run: terraform apply -lock-timeout=5m tfplan
