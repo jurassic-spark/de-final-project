@@ -19,6 +19,7 @@ terraform/tfplan*
 *.tfplan
 
 *.tfvars
+*.auto.tfvars
 
 # Terraform generated Lambda deployment packages
 terraform/*.zip
