@@ -5,6 +5,8 @@ from botocore.exceptions import ClientError
 import psycopg2
 
 sql_schema = """
+Drop TABLE IF EXISTS fact_sales_order CASCADE;
+Drop TABLE IF EXISTS dim_date;
 Drop TABLE IF EXISTS dim_staff;
 Drop TABLE IF EXISTS dim_location;
 Drop TABLE IF EXISTS dim_currency;

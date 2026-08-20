@@ -73,6 +73,10 @@ resource "aws_lambda_layer_version" "ingest_lambda_layer" {
 
   layer_name          = "ingest_function_layer"
   compatible_runtimes = ["python3.13"]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Package the custom ingest dependencies.
@@ -91,6 +95,10 @@ resource "aws_lambda_layer_version" "transform_layer" {
 
   layer_name          = "transform_function_layer"
   compatible_runtimes = ["python3.13"]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Package the custom transform dependencies.
@@ -110,7 +118,7 @@ resource "aws_lambda_function" "schema_load_lambda" {
   runtime       = "python3.13"
   architectures = ["x86_64"]
 
-  timeout     = 30
+  timeout     = 900
   memory_size = 1024
 
   source_code_hash = data.archive_file.load_schema_function.output_base64sha256
@@ -120,15 +128,27 @@ resource "aws_lambda_function" "schema_load_lambda" {
     "arn:aws:lambda:eu-west-2:336392948345:layer:AWSSDKPandas-Python313:9"
   ]
 
+  vpc_config {
+    subnet_ids = data.aws_subnets.default.ids
+
+    security_group_ids = [
+      aws_security_group.schema_load_lambda.id
+    ]
+  }
+
   environment {
     variables = {
       WAREHOUSE_SECRET_NAME = aws_db_instance.warehouse.master_user_secret[0].secret_arn
-      WAREHOUSE_NAME = "jurassic_sparks_warehouse"
-      HOST = "jurassic-sparks-warehouse.cfke2e6woj5h.eu-west-2.rds.amazonaws.com"
-      PORT = 5432
-      USER = "postgres"
+      WAREHOUSE_NAME        = aws_db_instance.warehouse.db_name
+      HOST                  = aws_db_instance.warehouse.address
+      PORT                  = tostring(aws_db_instance.warehouse.port)
+      USER                  = aws_db_instance.warehouse.username
     }
   }
+  #Ensures policy attachment takes place before network connection
+  depends_on = [
+    aws_iam_role_policy_attachment.schema_load_lambda_vpc_attach
+  ]
 }
 
 resource "aws_s3_object" "schema_load_function_zip" {

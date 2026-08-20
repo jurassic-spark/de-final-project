@@ -310,9 +310,10 @@ resource "aws_iam_policy" "schema_load_lambda_secrets_policy" {
 
     Statement = [
       {
-        Sid      = "ReadRDSCredentials"
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
+        Sid    = "ReadRDSCredentials"
+        Effect = "Allow"
+        Action = ["secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"]
         Resource = aws_db_instance.warehouse.master_user_secret[0].secret_arn
       }
     ]
@@ -322,4 +323,10 @@ resource "aws_iam_policy" "schema_load_lambda_secrets_policy" {
 resource "aws_iam_role_policy_attachment" "schema_load_lambda_secrets_policy_attach" {
   role       = aws_iam_role.schema_load_lambda_role.name
   policy_arn = aws_iam_policy.schema_load_lambda_secrets_policy.arn
+}
+
+# Allow schema load lambda role to create VPC network interfaces and write logs.
+resource "aws_iam_role_policy_attachment" "schema_load_lambda_vpc_attach" {
+  role       = aws_iam_role.schema_load_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
