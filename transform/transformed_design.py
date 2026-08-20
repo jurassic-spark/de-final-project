@@ -20,6 +20,3 @@ def transformed_design(table,bucket):
     keep='last'
     )
     print(df.head())
-
-
-transformed_design('design')
