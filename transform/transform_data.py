@@ -1,5 +1,4 @@
 import pandas as pd
-import s3fs
 import pycountry
 import numpy as np
 from io import BytesIO
@@ -7,18 +6,60 @@ import boto3
 import os
 from datetime import datetime
 
-def get_dataframe_from_s3(
-    bucket: str,
-    object_key: str,
-) -> pd.DataFrame:
-    """Read a Parquet file from S3 and return it as a pandas DataFrame."""
-    fs = s3fs.S3FileSystem()
-    s3_path = f"{bucket}/raw/{object_key}"
+from io import BytesIO
+import boto3
+import pandas as pd
+
+
+
+def get_dataframe_from_s3(bucket: str, object_key: str) -> pd.DataFrame:
+    """
+    Reads parquet data from S3 using boto3.
+
+    object_key should be the table/prefix name, e.g. "staff".
+    This function reads parquet files under raw/{object_key}/.
+    """
+
+    s3_client = boto3.client("s3")
+
+    prefix = f"raw/{object_key}/"
+
     try:
-        return pd.read_parquet(s3_path, filesystem=fs)
+        list_response = s3_client.list_objects_v2(
+            Bucket=bucket,
+            Prefix=prefix,
+        )
+
+        objects = list_response.get("Contents", [])
+
+        parquet_keys = [
+            obj["Key"]
+            for obj in objects
+            if obj["Key"].endswith(".parquet")
+        ]
+
+        if not parquet_keys:
+            raise FileNotFoundError(
+                f"No parquet files found under s3://{bucket}/{prefix}"
+        )
+
+        dataframes = []
+
+        for key in parquet_keys:
+            response = s3_client.get_object(
+                Bucket=bucket,
+                Key=key,
+            )
+
+            parquet_bytes = response["Body"].read()
+            df = pd.read_parquet(BytesIO(parquet_bytes))
+            dataframes.append(df)
+
+        return pd.concat(dataframes, ignore_index=True)
+
     except Exception as error:
         raise RuntimeError(
-            f"Failed to read parquet data from {s3_path}"
+            f"Failed to read parquet data from s3://{bucket}/{prefix}"
         ) from error
 
 
@@ -82,8 +123,8 @@ def create_merged_staff_dataframe():
     Drops rows with duplicate staff and department ids and merges raw tables.
     """
     # load dataframes
-    staff_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'staff')
-    department_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'department')
+    staff_df = get_dataframe_from_s3(os.environ["INGEST_BUCKET"], 'staff')
+    department_df = get_dataframe_from_s3(os.environ["INGEST_BUCKET"], 'department')
 
     # drop rows with duplicate staff ids and drop created_at and last_updated column from staff
     staff_df = staff_df.drop_duplicates(subset="staff_id", keep="last").drop(columns=['created_at', 'last_updated'])
@@ -136,8 +177,8 @@ def transform_location(df):
 
 def create_merged_counterparty_dataframe() -> pd.DataFrame:
     """Create dim_counterparty by joining counterparty and address data."""
-    counterparty_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'counterparty')
-    address_df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", 'address')
+    counterparty_df = get_dataframe_from_s3(os.environ["INGEST_BUCKET"], 'counterparty')
+    address_df = get_dataframe_from_s3(os.environ["INGEST_BUCKET"], 'address')
     dim_counterparty_df = counterparty_df.merge(
         address_df,
         how="left",
@@ -320,23 +361,23 @@ def lambda_handler(event, context):
         elif raw_table == "counterparty":
             df = create_merged_counterparty_dataframe()
         else:
-            df = get_dataframe_from_s3("js-final-proj-ingested-194169601943-dev", raw_table)
+            df = get_dataframe_from_s3(os.environ["INGEST_BUCKET"], raw_table)
         transformed_df = function(df)
         save_dataframe_to_s3_parquet(
             dataframe=transformed_df, 
-            bucket_name=os.environ["TRANSFORM_BUCKET"],
+            bucket_name=os.environ["PROCESSED_BUCKET"],
             table_name=target_table, 
             extracted_ts=extracted_ts
         )
 
     s3_client = boto3.client("s3")
-    dim_date_objects = s3_client.list_objects_v2(Bucket=os.environ["TRANSFORM_BUCKET"], Prefix="processed/dim_date")
+    dim_date_objects = s3_client.list_objects_v2(Bucket=os.environ["PROCESSED_BUCKET"], Prefix="processed/dim_date")
     
     if dim_date_objects.get("KeyCount", 0) == 0:
         dim_date = create_dim_date("2022-01-01", "2027-01-01")
         save_dataframe_to_s3_parquet(
                     dataframe=dim_date, 
-                    bucket_name=os.environ["TRANFORM_BUCKET"],
+                    bucket_name=os.environ["PROCESSED_BUCKET"],
                     table_name='dim_date', 
                     extracted_ts=extracted_ts
                 )

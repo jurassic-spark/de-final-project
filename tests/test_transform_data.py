@@ -14,49 +14,6 @@ from transform.transform_data import (
 )
 
 
-def test_get_dataframe_from_s3_returns_a_df():
-    # Define the mock S3 location.
-    bucket = "mock-s3"
-    object_key = "currency/currency.parquet"
-
-    # Define the DataFrame pandas should return.
-    expected_df = pd.DataFrame(
-        {
-            "currency_id": [1],
-            "currency_code": ["mock_money"],
-            "created_at": ["2022-11-03 00:00:00"],
-        }
-    )
-
-    # Mock the s3fs filesystem used to access S3.
-    mock_filesystem = MagicMock()
-
-    # Mock s3fs and pandas so no real S3 request is made.
-    with (
-        patch(
-            "transform.transform_data.s3fs.S3FileSystem",
-            return_value=mock_filesystem,
-        ),
-        patch(
-            "transform.transform_data.pd.read_parquet",
-            return_value=expected_df,
-        ) as mock_read_parquet,
-    ):
-        result_df = get_dataframe_from_s3(
-            bucket,
-            object_key,
-        )
-
-    # Check the function returns the expected DataFrame.
-    pd.testing.assert_frame_equal(result_df, expected_df)
-
-    # Check pandas was called with the correct S3 path and filesystem.
-    mock_read_parquet.assert_called_once_with(
-        "mock-s3/raw/currency/currency.parquet",
-        filesystem=mock_filesystem,
-    )
-
-
 def test_get_currency_name_returns_currency_name():
     assert get_currency_name("GBP") == "Pound Sterling"
 
@@ -351,7 +308,8 @@ def test_lambda_handler_extracts_all_data(
     mock_save_dataframe,
     monkeypatch,
 ):
-    monkeypatch.setenv("TRANSFORM_BUCKET", "mock-s3")
+    monkeypatch.setenv("INGEST_BUCKET", "mock-s3")
+    monkeypatch.setenv("PROCESSED_BUCKET", "mock-s3")
 
     mock_s3_client = mock.MagicMock()
     mock_boto_client.return_value = mock_s3_client

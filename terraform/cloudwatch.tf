@@ -9,7 +9,7 @@ resource "aws_cloudwatch_log_group" "ingest_function_log_group" {
 resource "aws_cloudwatch_log_metric_filter" "ingest_function_error" {
   name           = "ingest_function_error"
   pattern        = "ERROR"
-  log_group_name = "/aws/lambda/ingest_raw_data"
+  log_group_name = aws_cloudwatch_log_group.ingest_function_log_group.name
 
   metric_transformation {
     name      = "ingest_function_error"
