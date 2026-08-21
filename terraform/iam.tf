@@ -126,8 +126,7 @@ resource "aws_iam_policy" "lambda_function_logging_policy" {
   })
 }
 
-# Grants the transform Lambda permission to read raw data from the
-# ingestion bucket and write transformed data to the processed bucket.
+
 resource "aws_iam_policy" "transform_s3_policy" {
   name = "transform-lambda-s3-access"
 
@@ -142,12 +141,21 @@ resource "aws_iam_policy" "transform_s3_policy" {
         Resource = "${aws_s3_bucket.ingestion_zone.arn}/*"
       },
       {
+        Sid    = "ReadCode"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion"
+        ]
+        Resource = "${aws_s3_bucket.code.arn}/*"
+      },
+      {
         Sid      = "ListIngestionBucket"
         Effect   = "Allow"
         Action   = ["s3:ListBucket"]
         Resource = aws_s3_bucket.ingestion_zone.arn
-      },
-      {
+        },
+        {
         Sid      = "WriteProcessedData"
         Effect   = "Allow"
         Action   = ["s3:PutObject"]
@@ -156,6 +164,7 @@ resource "aws_iam_policy" "transform_s3_policy" {
     ]
   })
 }
+
 
 # Grants the load Lambda read access to the processed S3 bucket.
 resource "aws_iam_policy" "load_s3_policy" {

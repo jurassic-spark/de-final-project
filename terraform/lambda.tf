@@ -20,8 +20,8 @@ resource "aws_s3_object" "transform_layer_zip" {
   bucket = aws_s3_bucket.code.id
   key    = "layers/transform_function_layer.zip"
 
-  source      = data.archive_file.transform_layer.output_path
-  source_hash = data.archive_file.transform_layer.output_base64sha256
+  source      = data.archive_file.transform_lambda_layer.output_path
+  source_hash = data.archive_file.transform_lambda_layer.output_base64sha256
 }
 
 resource "aws_lambda_function" "ingest_raw_data" {
