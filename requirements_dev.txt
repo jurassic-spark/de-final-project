@@ -1,2 +1,8 @@
+-r requirements.txt
+
 bandit==1.9.4
-pip_audit==2.10.1
+jupyter==1.1.1
+moto==5.2.2
+pip-audit==2.10.1
+plotly==6.9.0
+pytest==9.1.1
