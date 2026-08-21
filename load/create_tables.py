@@ -195,7 +195,3 @@ if __name__ == "__main__":
     secret_name = "SECRET_NAME"
 
     secret = get_secret(secret_name)
-
-    
-
-

@@ -34,9 +34,13 @@ resource "aws_db_instance" "warehouse" {
   # Single-AZ development database.
   # availability_zone is deliberately omitted so AWS can choose
   # any suitable AZ within eu-west-2.
-  multi_az            = false
-  publicly_accessible = false
-  port                = 5432
+  multi_az = false
+  # publicly_accessible = false
+  # Public access exists only while a temporary administrator CIDR is provided.
+  publicly_accessible = length(var.temporary_warehouse_admin_cidrs) > 0
+  apply_immediately   = var.apply_rds_changes_immediately
+
+  port = 5432
 
   # Automated backups
   backup_retention_period  = 1

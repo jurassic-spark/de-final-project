@@ -1,4 +1,4 @@
-Drop TABLE IF EXISTS fact_sales_order CASCADE;
+Drop TABLE IF EXISTS fact_sales CASCADE;
 Drop TABLE IF EXISTS dim_date;
 Drop TABLE IF EXISTS dim_staff;
 Drop TABLE IF EXISTS dim_location;
@@ -7,7 +7,7 @@ Drop TABLE IF EXISTS dim_design;
 Drop TABLE IF EXISTS dim_counterparty;
 
 
-CREATE TABLE fact_sales_order (
+CREATE TABLE fact_sales (
   sales_record_id SERIAL PRIMARY KEY,
   sales_order_id INT NOT NULL,
   created_date DATE NOT NULL,
@@ -81,20 +81,20 @@ CREATE TABLE dim_counterparty (
   counterparty_legal_phone_number VARCHAR NOT NULL
 );
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (created_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (created_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (last_updated_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (last_updated_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (sales_staff_id) REFERENCES dim_staff (staff_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (sales_staff_id) REFERENCES dim_staff (staff_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (counterparty_id) REFERENCES dim_counterparty (counterparty_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (counterparty_id) REFERENCES dim_counterparty (counterparty_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (currency_id) REFERENCES dim_currency (currency_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (currency_id) REFERENCES dim_currency (currency_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (design_id) REFERENCES dim_design (design_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (design_id) REFERENCES dim_design (design_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_payment_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (agreed_payment_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_delivery_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (agreed_delivery_date) REFERENCES dim_date (date_id) DEFERRABLE INITIALLY IMMEDIATE;
 
-ALTER TABLE fact_sales_order ADD FOREIGN KEY (agreed_delivery_location_id) REFERENCES dim_location (location_id) DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE fact_sales ADD FOREIGN KEY (agreed_delivery_location_id) REFERENCES dim_location (location_id) DEFERRABLE INITIALLY IMMEDIATE;
