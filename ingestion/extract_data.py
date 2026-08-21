@@ -14,6 +14,9 @@ from datetime import datetime, timedelta
 
 
 def get_secret(secret_name):
+   
+
+    
 
     region_name = "eu-west-2"
 
@@ -114,3 +117,8 @@ def lambda_handler(event, context):
         save_dataframe_to_s3_parquet(
             dataframe=df, bucket_name=os.environ["INGEST_BUCKET"], table_name=table, extracted_ts=extracted_ts
         )
+
+
+
+
+
