@@ -4,12 +4,7 @@ import numpy as np
 from io import BytesIO
 import boto3
 import os
-from datetime import datetime
-
-from io import BytesIO
-import boto3
-import pandas as pd
-
+from datetime import datetime, date
 
 
 def get_dataframe_from_s3(bucket: str, object_key: str) -> pd.DataFrame:
@@ -331,11 +326,14 @@ def transform_design(df):
 def save_dataframe_to_s3_parquet(dataframe, bucket_name, table_name, extracted_ts):
     parquet_buffer = BytesIO()
 
-    timestamp = pd.to_datetime(extracted_ts).strftime("%Y%m%d_%H%M%S")
+    if extracted_ts is None:
+        object_key = f"processed/{table_name}/{table_name}.parquet"
+    else:
+        timestamp = pd.to_datetime(extracted_ts).strftime("%Y%m%d_%H%M%S")
+        object_key = f"processed/{table_name}/{table_name}_{timestamp}.parquet"
+
 
     dataframe.to_parquet(parquet_buffer, index=False)
-
-    object_key = f"processed/{table_name}/{table_name}_{timestamp}.parquet"  # Potential specificity using timestamps here
 
     s3_client = boto3.client("s3")
 
@@ -370,14 +368,10 @@ def lambda_handler(event, context):
             extracted_ts=extracted_ts
         )
 
-    s3_client = boto3.client("s3")
-    dim_date_objects = s3_client.list_objects_v2(Bucket=os.environ["PROCESSED_BUCKET"], Prefix="processed/dim_date")
-    
-    if dim_date_objects.get("KeyCount", 0) == 0:
-        dim_date = create_dim_date("2022-01-01", "2027-01-01")
-        save_dataframe_to_s3_parquet(
-                    dataframe=dim_date, 
-                    bucket_name=os.environ["PROCESSED_BUCKET"],
-                    table_name='dim_date', 
-                    extracted_ts=extracted_ts
-                )
+    dim_date = create_dim_date("2022-01-01", date.today().strftime('%Y-%m-%d'))
+    save_dataframe_to_s3_parquet(
+                dataframe=dim_date, 
+                bucket_name=os.environ["PROCESSED_BUCKET"],
+                table_name='dim_date', 
+                extracted_ts=None
+            )
