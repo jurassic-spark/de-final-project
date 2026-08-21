@@ -23,6 +23,7 @@ terraform/tfplan*
 
 # Terraform generated Lambda deployment packages
 terraform/*.zip
+terraform/*_zip
 
 #crash logs
 crash.log
