@@ -333,7 +333,7 @@ def test_lambda_handler_extracts_all_data(
         table_name = call.kwargs["table_name"]
         table_names.append(table_name)
 
-    assert mock_save_dataframe.call_count == 6
+    assert mock_save_dataframe.call_count == 7
     assert 'fact_sales' in table_names
     assert 'dim_design' in table_names
     assert 'dim_currency' in table_names
